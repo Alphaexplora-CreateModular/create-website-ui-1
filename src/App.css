@@ -1,0 +1,113 @@
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+@font-face {
+  font-family: 'The Bold Font';
+  src: url('/fonts/theboldfont.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Poppins';
+  src: url('/fonts/poppins.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  background: #ffffff;
+  color: #000000;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.home-header {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image: url('/no-furniture.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.home-header__overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.home-header__couch-base {
+  position: absolute;
+  inset: 0;
+  background-image: url('/couch.png');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.home-header__couch-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 2;
+}
+
+.home-header__inner {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.home-header__inner h1 {
+  margin: 0;
+  font-family: 'The Bold Font', system-ui, sans-serif;
+}
+
+.home-header__subtitle {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-weight: 200;
+  font-size: clamp(2.5rem, 2.5vw, 1.4rem);
+  margin-bottom: 40px;
+  color: #64554f;
+}
+
+.projects-title {
+  font-family: 'The Bold Font', system-ui, sans-serif;
+}
+
+.projects-subtitle {
+  font-family: 'Poppins', system-ui, sans-serif;
+}
+
+.projects-description {
+  font-family: 'Poppins', system-ui, sans-serif;
+}
