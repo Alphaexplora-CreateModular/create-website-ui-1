@@ -61,10 +61,30 @@ select {
 .home-header__couch-base {
   position: absolute;
   inset: 0;
-  background-image: url('/couch.png');
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
+  transition: opacity 0.8s ease;
+}
+
+.home-header__couch-base--day {
+  background-image: url('/couch.png');
+  opacity: 1;
+  z-index: 0;
+}
+
+.home-header__couch-base--night {
+  background-image: url('/couch-night.png');
+  opacity: 0;
+  z-index: 0;
+}
+
+.home-header--scrolled .home-header__couch-base--day {
+  opacity: 0;
+}
+
+.home-header--scrolled .home-header__couch-base--night {
+  opacity: 1;
 }
 
 .home-header__couch-overlay {
@@ -74,6 +94,20 @@ select {
   height: 100%;
   object-fit: cover;
   z-index: 2;
+  opacity: 1;
+  transition: opacity 0.8s ease;
+}
+
+.home-header__couch-overlay--night {
+  opacity: 0;
+}
+
+.home-header--scrolled .home-header__couch-overlay--day {
+  opacity: 0;
+}
+
+.home-header--scrolled .home-header__couch-overlay--night {
+  opacity: 1;
 }
 
 .home-header__inner {
@@ -98,6 +132,25 @@ select {
   font-size: clamp(2.5rem, 2.5vw, 1.4rem);
   margin-bottom: 40px;
   color: #64554f;
+  transition: color 0.35s ease;
+}
+
+.home-header__subtitle--scrolled {
+  color: #FFCC73;
+}
+
+.home-header__inner h1 {
+  color: #64554f;
+  transition: color 0.35s ease;
+}
+
+.home-header__title--scrolled {
+  color: #FFCC73;
+}
+
+.home-header--scrolled .home-header__subtitle,
+.home-header--scrolled .home-header__inner h1 {
+  color: #FFCC73;
 }
 
 .projects-title {
