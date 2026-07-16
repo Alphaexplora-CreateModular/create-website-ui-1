@@ -68,13 +68,13 @@ select {
 }
 
 .home-header__couch-base--day {
-  background-image: url('/couch.png');
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.00) 82.74%, #FFF 100%), url('/couch.png') lightgray 50% / cover no-repeat;
   opacity: 1;
   z-index: 0;
 }
 
 .home-header__couch-base--night {
-  background-image: url('/couch-night.png');
+  background: url('/couch-night.png') lightgray 50% / cover no-repeat;
   opacity: 0;
   z-index: 0;
 }
@@ -163,4 +163,123 @@ select {
 
 .projects-description {
   font-family: 'Poppins', system-ui, sans-serif;
+}
+
+.service-overview {
+  position: relative;
+  padding: 100px 24px;
+  background: #fff;
+}
+
+.service-overview__inner {
+  max-width: 1220px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 48px;
+  align-items: center;
+}
+
+.service-overview__content {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.service-overview__title {
+  font-family: 'The Bold Font', system-ui, sans-serif;
+  font-size: clamp(2.5rem, 3.5vw, 4rem);
+  line-height: 1.02;
+  color: #3f2f24;
+  margin: 0;
+}
+
+.service-overview__description {
+  font-family: 'Poppins', system-ui, sans-serif;
+  font-size: clamp(1rem, 1.1vw, 1.15rem);
+  line-height: 1.9;
+  color: #63534a;
+  max-width: 620px;
+}
+
+.service-overview__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.service-overview__button {
+  font-family: 'Poppins', system-ui, sans-serif;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 16px 28px;
+  cursor: pointer;
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.service-overview__button--primary {
+  background: #3f2f24;
+  color: #fff;
+}
+
+.service-overview__button--secondary {
+  background: transparent;
+  color: #3f2f24;
+  border-color: #3f2f24;
+}
+
+.service-overview__button:hover {
+  opacity: 0.92;
+}
+
+.service-overview__image-wrapper {
+  position: relative;
+  width: 100%;
+  min-height: 420px;
+  overflow: hidden;
+  border-radius: 32px;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+}
+
+.service-overview__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.6s ease;
+}
+
+.service-overview__image--day {
+  opacity: 1;
+}
+
+.service-overview__image--night {
+  opacity: 0;
+}
+
+.service-overview__image-wrapper.active .service-overview__image--day {
+  opacity: 0;
+}
+
+.service-overview__image-wrapper.active .service-overview__image--night {
+  opacity: 1;
+}
+
+@media (max-width: 900px) {
+  .service-overview__inner {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .service-overview {
+    padding: 60px 18px;
+  }
+
+  .service-overview__title {
+    font-size: clamp(2.2rem, 8vw, 2.8rem);
+  }
 }

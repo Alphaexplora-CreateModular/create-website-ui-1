@@ -1,87 +1,56 @@
 "use client";
 
-import { useCallback, useState } from "react";
-
-type Project = {
-  image: string;
-  title: string;
-  description: string;
-};
-
-const projects: Project[] = [
-  {
-    image: "/public/couch.png",
-    title: "Sample Title",
-    description:
-      "We discuss your needs, style preferences, budget, and project requirements.",
-  },
-  {
-    image: "/public/couch.png",
-    title: "Modern Loft Redesign",
-    description:
-      "A full interior overhaul balancing warmth and minimalism for city living.",
-  },
-  {
-    image: "/public/couch.png",
-    title: "Coastal Retreat",
-    description:
-      "Light-filled spaces with natural textures inspired by the shoreline.",
-  },
-  {
-    image: "/public/couch.png",
-    title: "Urban Studio Refresh",
-    description:
-      "Compact, functional design that makes every square foot count.",
-  },
-  {
-    image: "/public/couch.png",
-    title: "Family Living Space",
-    description:
-      "Durable, welcoming interiors designed around everyday family life.",
-  },
-];
-
-const MAX_VISIBLE_OFFSET = 2;
-
-// Keep this in sync with the section's bg-[#3a2f2a] below. Centralizing it
-// here means the fade gradients always match the background exactly.
-const BG_COLOR = "#3a2f2a";
+import { motion } from "framer-motion";
+import { useProjectsCarouselViewModel } from "../viewModels/useProjectsCarouselViewModel";
+import type { Project } from "../viewModels/useProjectsCarouselViewModel";
 
 export default function ProjectsCarousel() {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [direction, setDirection] = useState<"next" | "prev">("next");
-  const total = projects.length;
-
-  const goTo = useCallback(
-    (index: number, dir: "next" | "prev") => {
-      setDirection(dir);
-      setActiveIndex(((index % total) + total) % total);
-    },
-    [total],
-  );
-
-  const handlePrev = () => goTo(activeIndex - 1, "prev");
-  const handleNext = () => goTo(activeIndex + 1, "next");
-
-  const getOffset = (index: number) => {
-    let offset = index - activeIndex;
-    if (offset > total / 2) offset -= total;
-    if (offset < -total / 2) offset += total;
-    return offset;
-  };
+  const {
+    projects,
+    activeIndex,
+    handlePrev,
+    handleNext,
+    goTo,
+    getOffset,
+    BG_COLOR,
+    MAX_VISIBLE_OFFSET,
+  } = useProjectsCarouselViewModel();
 
   return (
-    <section className="flex flex-col items-center bg-[#3a2f2a] py-20 px-4">
+    <section className="flex flex-col items-center bg-[#3a2f2a] py-20 px-4 overflow-hidden">
+      {/* Header section with staggered fade-in up on scroll */}
       <div className="flex flex-col items-center justify-center gap-2 text-center mb-14">
-        <h2 className="projects-title text-4xl md:text-5xl tracking-wide text-white uppercase">
+        <motion.h2
+          className="projects-title text-4xl md:text-5xl tracking-wide text-white uppercase"
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          // Changed once to false so it triggers on every scroll-up/down
+          viewport={{ once: false, amount: 0.35 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+        >
           Our Projects
-        </h2>
-        <p className="projects-subtitle text-white/70 text-base md:text-lg">
+        </motion.h2>
+        <motion.p
+          className="projects-subtitle text-white/70 text-base md:text-lg"
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          // Changed once to false
+          viewport={{ once: false, amount: 0.35 }}
+          transition={{ delay: 0.1, duration: 0.8, ease: "easeOut" }}
+        >
           Designed for Living. Built for You.
-        </p>
+        </motion.p>
       </div>
 
-      <div className="relative flex items-center justify-center w-full max-w-[min(100vw-48px,1800px)]">
+      {/* Carousel container entering on scroll */}
+      <motion.div
+        className="relative flex items-center justify-center w-full max-w-[min(100vw-48px,1800px)]"
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        // Changed once to false
+        viewport={{ once: false, amount: 0.25 }}
+        transition={{ delay: 0.15, duration: 0.8, ease: "easeOut" }}
+      >
         <button
           onClick={handlePrev}
           aria-label="Previous project"
@@ -90,7 +59,7 @@ export default function ProjectsCarousel() {
           <ChevronLeft />
         </button>
 
-        <div className="relative h-[420px] w-full overflow-hidden [perspective:1200px]">
+        <div className="relative h-105 w-full overflow-hidden perspective-distant">
           {projects.map((project, index) => {
             const offset = getOffset(index);
             const isActive = offset === 0;
@@ -123,11 +92,6 @@ export default function ProjectsCarousel() {
             );
           })}
 
-          {/* Edge fade overlays: same color as the section background,
-              fading to transparent. Sits above the offset cards (z-20)
-              so the side cards visually dissolve into the background
-              instead of ending on a hard clip edge. pointer-events-none
-              so it never blocks clicks on the arrows above it. */}
           <div
             className="pointer-events-none absolute left-0 top-0 z-20 h-full w-24 md:w-40"
             style={{
@@ -149,9 +113,17 @@ export default function ProjectsCarousel() {
         >
           <ChevronRight />
         </button>
-      </div>
+      </motion.div>
 
-      <div className="flex items-center justify-center gap-2 mt-8">
+      {/* Navigation dots sliding up gracefully with the list */}
+      <motion.div
+        className="flex items-center justify-center gap-2 mt-8"
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        // Changed once to false
+        viewport={{ once: false, amount: 0.35 }}
+        transition={{ delay: 0.25, duration: 0.8, ease: "easeOut" }}
+      >
         {projects.map((_, index) => (
           <button
             key={index}
@@ -164,12 +136,11 @@ export default function ProjectsCarousel() {
             }`}
           />
         ))}
-      </div>
+      </motion.div>
     </section>
   );
 }
 
-// Also provide a named export for consumers importing with braces
 export { ProjectsCarousel };
 
 function Card({
@@ -184,13 +155,13 @@ function Card({
   return (
     <div
       onClick={onClick}
-      className={`relative w-[340px] md:w-[420px] bg-white shadow-2xl overflow-hidden ${
+      className={`relative w-85 md:w-105 bg-white shadow-2xl overflow-hidden ${
         isActive ? "cursor-default" : "cursor-pointer"
       }`}
       style={{ opacity: isActive ? 1 : 0.8 }}
     >
       <div className="relative">
-        <div className="relative h-[220px] w-full overflow-hidden border-[10px] border-white/80">
+        <div className="relative h-55 w-full overflow-hidden border-10 border-white/80">
           <img
             src={project.image}
             alt={project.title}

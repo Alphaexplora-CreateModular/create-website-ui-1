@@ -1,6 +1,8 @@
 import { useHomeViewModel } from "../viewModels/useHomeViewModel";
 import { Header } from "./Header";
+import { ServiceOverview } from "./ServiceOverview";
 import ProjectsCarousel from "./ProjectsCarousel.tsx";
+import { Process } from "./Process";
 
 export function Home() {
   const viewModel = useHomeViewModel();
@@ -9,7 +11,9 @@ export function Home() {
   return (
     <div>
       <Header />
+      <ServiceOverview />
       <ProjectsCarousel />
+      <Process />
     </div>
   );
 }

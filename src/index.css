@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
 html,
 body,
 #root {
@@ -7,10 +12,15 @@ body,
   margin: 0;
 }
 
+*{scroll-behavior: smooth;}
+
 body {
   font-family: system-ui, sans-serif;
   background: #ffffff;
   color: #000000;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
 }
 
 * {
