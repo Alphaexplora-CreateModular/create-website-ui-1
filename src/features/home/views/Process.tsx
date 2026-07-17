@@ -469,7 +469,7 @@ export function Process() {
       {/* 20% OVERLAY LAYER */}
       <div
         className={`absolute inset-0 z-10
-    bg-[#4C3E39]/80
+    bg-[#000000]/35
     backdrop-blur-xl
     transition-opacity duration-700
     ${introActive ? "opacity-100" : "opacity-0 pointer-events-none"}
