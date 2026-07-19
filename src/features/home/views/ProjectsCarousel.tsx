@@ -1,7 +1,14 @@
 "use client";
 
 import { useRef } from "react";
-import { motion, useMotionValue, useSpring } from "framer-motion";
+import {
+  motion,
+  useMotionValue,
+  useSpring,
+  useScroll,
+  useTransform,
+  MotionValue,
+} from "framer-motion";
 import { useProjectsCarouselViewModel } from "../viewModels/useProjectsCarouselViewModel";
 import type { Project } from "../viewModels/useProjectsCarouselViewModel";
 
@@ -17,7 +24,7 @@ export default function ProjectsCarousel() {
     MAX_VISIBLE_OFFSET,
   } = useProjectsCarouselViewModel();
 
-  // 1. Mouse-following Blob Physics
+  // Mouse-following Blob Physics
   const containerRef = useRef<HTMLDivElement>(null);
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
@@ -35,13 +42,19 @@ export default function ProjectsCarousel() {
     mouseY.set(e.clientY - rect.top - 150);
   };
 
+  // 1. Hook into the scroll progress tracking this specific section
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start end", "end start"],
+  });
+
   return (
     <section
       ref={containerRef}
       onMouseMove={handleMouseMove}
       className="relative flex flex-col items-center bg-[#3a2f2a] py-20 px-4 overflow-hidden"
     >
-      {/* 🔮 1. Interactive Mouse-Following Blob (Moved to z-25 to sit on top of the gradients) */}
+      {/* 🔮 1. Interactive Mouse-Following Blob */}
       <motion.div
         className="pointer-events-none absolute top-0 left-0 w-[300px] h-[300px] rounded-full filter blur-[60px] opacity-35 mix-blend-screen z-25"
         style={{
@@ -52,7 +65,7 @@ export default function ProjectsCarousel() {
         }}
       />
 
-      {/* 🌊 2. Autonomous Floating Blob (Moved to z-25 to sit on top of the gradients) */}
+      {/* 🌊 2. Autonomous Floating Blob */}
       <motion.div
         className="pointer-events-none absolute w-[350px] h-[350px] rounded-full filter blur-[80px] opacity-25 mix-blend-screen z-25"
         style={{
@@ -94,7 +107,7 @@ export default function ProjectsCarousel() {
         </motion.p>
       </div>
 
-      {/* Carousel container (z-10 contains the carousel system) */}
+      {/* Carousel container */}
       <motion.div
         className="relative z-10 flex items-center justify-center w-full max-w-[min(100vw-48px,1800px)]"
         initial={{ opacity: 0, y: 40 }}
@@ -131,10 +144,12 @@ export default function ProjectsCarousel() {
                   zIndex,
                 }}
               >
+                {/* 2. Passed the parent scroll value down to the Card */}
                 <Card
                   project={project}
                   index={index}
                   isActive={isActive}
+                  scrollYProgress={scrollYProgress}
                   onClick={() =>
                     !isActive &&
                     goTo(index, index > activeIndex ? "next" : "prev")
@@ -144,14 +159,14 @@ export default function ProjectsCarousel() {
             );
           })}
 
-          {/* Left Side Gradient Overlay (z-20) */}
+          {/* Left Side Gradient Overlay */}
           <div
             className="pointer-events-none absolute left-0 top-0 z-20 h-full w-24 md:w-40"
             style={{
               background: `linear-gradient(to right, ${BG_COLOR}, transparent)`,
             }}
           />
-          {/* Right Side Gradient Overlay (z-20) */}
+          {/* Right Side Gradient Overlay */}
           <div
             className="pointer-events-none absolute right-0 top-0 z-20 h-full w-24 md:w-40"
             style={{
@@ -160,7 +175,7 @@ export default function ProjectsCarousel() {
           />
         </div>
 
-        {/* Arrow Buttons (z-30 - sits safely on top of the blobs) */}
+        {/* Arrow Buttons */}
         <button
           onClick={handleNext}
           aria-label="Next project"
@@ -170,7 +185,7 @@ export default function ProjectsCarousel() {
         </button>
       </motion.div>
 
-      {/* Navigation dots (z-10) */}
+      {/* Navigation dots */}
       <motion.div
         className="relative z-10 flex items-center justify-center gap-2 mt-8"
         initial={{ opacity: 0, y: 24 }}
@@ -197,21 +212,25 @@ export default function ProjectsCarousel() {
 
 export { ProjectsCarousel };
 
+// 3. Updated Card interface to accept scroll variables
 function Card({
   project,
   index,
   isActive,
+  scrollYProgress,
   onClick,
 }: {
   project: Project;
   index: number;
   isActive: boolean;
+  scrollYProgress: MotionValue<number>;
   onClick: () => void;
 }) {
-  // Dynamically points to public/images/project_1.jpg through project_5.jpg
-  // The modulo operator (%) maps indices (0 to N) down to 1-5
   const imageNumber = (index % 5) + 1;
   const imageSrc = `/images/project_${imageNumber}.jpg`;
+
+  // 4. Transform the scroll into individual graphic Y drift positions
+  const imageY = useTransform(scrollYProgress, [0, 1], [-40, 40]);
 
   return (
     <div
@@ -222,11 +241,14 @@ function Card({
       style={{ opacity: isActive ? 1 : 0.8 }}
     >
       <div className="relative">
+        {/* 5. Added overflow-hidden to clip the image when moving inside the border */}
         <div className="relative h-55 w-full overflow-hidden border-10 border-white/80">
-          <img
+          {/* 6. Converted to motion.img, scaled to prevent white empty gaps, and bound styling */}
+          <motion.img
+            style={{ y: imageY }}
             src={imageSrc}
             alt={project.title}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover scale-115"
           />
         </div>
         <div className="flex flex-col items-center text-center gap-1 px-6 py-5">

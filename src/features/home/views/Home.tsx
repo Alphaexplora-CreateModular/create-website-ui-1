@@ -1,17 +1,22 @@
 // src/features/home/views/Home.tsx
 import { useEffect, useState } from "react";
 import { useHomeViewModel } from "../viewModels/useHomeViewModel";
+import { useHeaderViewModel } from "../viewModels/useHeaderViewModel"; // Import the view model
 import { Header } from "./Header";
 import { ServiceOverview } from "./ServiceOverview";
 import ProjectsCarousel from "./ProjectsCarousel.tsx";
 import { Process } from "./Process";
 import { Offers } from "./Offers";
 import { Navbar } from "./Navbar";
+import Contact from "./Contact.tsx";
+import Footer from "./Footer.tsx";
 
 export function Home() {
   const viewModel = useHomeViewModel();
   void viewModel;
 
+  // Grab the real scrolled state straight from the header context
+  const { scrolled: isHeaderScrolled } = useHeaderViewModel();
   const [activeSection, setActiveSection] = useState<string>("header");
 
   useEffect(() => {
@@ -37,7 +42,6 @@ export function Home() {
       observerOptions,
     );
 
-    // Track sections simply by looking for the data attribute
     const targets = document.querySelectorAll("[data-nav-key]");
     targets.forEach((target) => observer.observe(target));
 
@@ -48,8 +52,11 @@ export function Home() {
 
   return (
     <div className="relative min-h-screen bg-[#121212] text-white">
-      {/* Simple, Static-Style White Navbar */}
-      <Navbar activeSection={activeSection} />
+      {/* Pass the exact header scroll transition boolean down to the nav */}
+      <Navbar
+        activeSection={activeSection}
+        isHeaderScrolled={isHeaderScrolled}
+      />
 
       {/* Header */}
       <div id="header-section" data-nav-key="header">
@@ -74,6 +81,16 @@ export function Home() {
       {/* Process */}
       <div id="process" data-nav-key="process">
         <Process />
+      </div>
+
+      {/* Contact Section */}
+      <div id="contact" data-nav-key="contact">
+        <Contact />
+      </div>
+
+      {/* Footer */}
+      <div id="footer" data-nav-key="footer">
+        <Footer />
       </div>
     </div>
   );
