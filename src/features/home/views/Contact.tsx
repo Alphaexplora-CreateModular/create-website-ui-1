@@ -1,37 +1,7 @@
+// src/features/home/views/Contact.tsx
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { Phone, Mail, MapPin, Clock, ArrowRight } from "lucide-react";
-
-// FONT SETUP
-// ----------
-// 1) "THE BOLD FONT" (heading) — this is a real free/personal-use display
-//    typeface by Sven Pels, distributed at https://the-bold-font.com and
-//    dafont.com. It isn't hosted on a public CDN, so it can't be linked the
-//    way Google Fonts can — download the .woff2/.woff/.ttf file yourself
-//    (check the license for your use case) and add it to your project like:
-//
-//    public/
-//      fonts/
-//        TheBoldFont.woff2
-//
-//    Then declare it once in your global CSS (e.g. index.css):
-//
-//    @font-face {
-//      font-family: "The Bold Font";
-//      src: url("/fonts/TheBoldFont.woff2") format("woff2"),
-//           url("/fonts/TheBoldFont.woff") format("woff");
-//      font-weight: normal;
-//      font-style: normal;
-//      font-display: swap;
-//    }
-//
-//    Note: the free version of this font is uppercase-only (no lowercase
-//    glyphs), so the heading below is set in uppercase to match it.
-//
-// 2) Poppins (everything else) — available on Google Fonts, add to your
-//    index.html <head>:
-//
-//    <link rel="preconnect" href="https://fonts.googleapis.com">
-//    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 type ContactForm = {
   name: string;
@@ -59,31 +29,22 @@ export default function Contact() {
   };
 
   const contactDetails = [
-    {
-      icon: Phone,
-      label: "Phone",
-      value: "(555) 012-3456",
-    },
-    {
-      icon: Mail,
-      label: "Email",
-      value: "hello@oakhaus.com",
-    },
+    { icon: Phone, label: "Phone", value: "(555) 012-3456" },
+    { icon: Mail, label: "Email", value: "hello@oakhaus.com" },
     {
       icon: MapPin,
       label: "Address",
       value: "18 Maple Works, Design District",
     },
-    {
-      icon: Clock,
-      label: "Hours",
-      value: "Mon – Sat · 8:00 AM – 5:00 PM",
-    },
+    { icon: Clock, label: "Hours", value: "Mon – Sat · 8:00 AM – 5:00 PM" },
   ];
+
+  // Shared scroll viewport settings matching ServiceOverview
+  const viewportSettings = { once: false, amount: 0.35 };
 
   return (
     <section
-      className="w-full py-16 px-6 md:px-12"
+      className="w-full py-16 px-6 md:px-12 overflow-hidden"
       style={{
         backgroundColor: "#FFFFFF",
         fontFamily: "'Poppins', sans-serif",
@@ -92,14 +53,18 @@ export default function Contact() {
       <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-start">
         {/* Left column */}
         <div>
-          <p
+          <motion.p
             className="text-xs font-semibold tracking-[0.15em] mb-3"
             style={{ color: "#4C3E39" }}
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewportSettings}
+            transition={{ duration: 0.8, ease: "easeOut" }}
           >
             LET'S TALK
-          </p>
+          </motion.p>
 
-          <h2
+          <motion.h2
             className="text-4xl md:text-5xl leading-tight mb-5 uppercase"
             style={{
               fontFamily: "'The Bold Font', sans-serif",
@@ -107,24 +72,44 @@ export default function Contact() {
               letterSpacing: "0.01em",
               color: "#4C3E39",
             }}
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewportSettings}
+            transition={{ delay: 0.05, duration: 0.8, ease: "easeOut" }}
           >
             Let's build your
             <br />
             dream interior
-          </h2>
+          </motion.h2>
 
-          <p
+          <motion.p
             className="text-base leading-relaxed mb-10 max-w-md"
             style={{ color: "#4C3E39" }}
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={viewportSettings}
+            transition={{ delay: 0.1, duration: 0.8, ease: "easeOut" }}
           >
             Whether you're planning a home renovation or a commercial fit-out,
             we're ready to help. Contact us today to schedule your consultation
             and receive a personalized quotation.
-          </p>
+          </motion.p>
 
+          {/* Contact Cards Grid */}
           <div className="grid grid-cols-2 gap-x-8 gap-y-8">
-            {contactDetails.map(({ icon: Icon, label, value }) => (
-              <div key={label} className="flex items-start gap-3">
+            {contactDetails.map(({ icon: Icon, label, value }, index) => (
+              <motion.div
+                key={label}
+                className="flex items-start gap-3"
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={viewportSettings}
+                transition={{
+                  delay: 0.15 + index * 0.05, // Subtle stagger sequence for grid items
+                  duration: 0.8,
+                  ease: "easeOut",
+                }}
+              >
                 <div
                   className="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
                   style={{ backgroundColor: "#F0E4D6" }}
@@ -142,15 +127,19 @@ export default function Contact() {
                     {value}
                   </p>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
 
         {/* Right column - form card */}
-        <div
+        <motion.div
           className="rounded-2xl p-8 md:p-10"
           style={{ backgroundColor: "#FFFFFF", border: "1.5px solid #4C3E39" }}
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={viewportSettings}
+          transition={{ delay: 0.15, duration: 0.8, ease: "easeOut" }}
         >
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
@@ -247,7 +236,7 @@ export default function Contact() {
               <ArrowRight size={16} />
             </button>
           </form>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

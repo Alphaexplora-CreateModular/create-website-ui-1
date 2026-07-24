@@ -1,28 +1,22 @@
+// src/features/home/views/Footer.tsx
 import React from "react";
+import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 
-// FONT SETUP
-// ----------
-// 1) "THE BOLD FONT" (heading) — see Contact.tsx for setup instructions;
-//    download from https://the-bold-font.com and self-host via @font-face.
-//    Free version is uppercase-only, so the heading is set in uppercase here
-//    to match the font's available glyphs.
-//
-// 2) Poppins (everything else) — Google Fonts:
-//    <link rel="preconnect" href="https://fonts.googleapis.com">
-//    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-
 export default function Footer() {
+  // Shared scroll viewport settings matching your other views
+  const viewportSettings = { once: false, amount: 0.35 };
+
   return (
     <footer
-      className="w-full"
+      className="w-full overflow-hidden"
       style={{
         backgroundColor: "#3D2A1D",
         fontFamily: "'Poppins', sans-serif",
       }}
     >
       <div className="max-w-6xl mx-auto px-6 md:px-12 pt-20 pb-10 text-center">
-        <h2
+        <motion.h2
           className="text-4xl md:text-5xl leading-tight mb-5 uppercase"
           style={{
             fontFamily: "'The Bold Font', sans-serif",
@@ -30,30 +24,47 @@ export default function Footer() {
             letterSpacing: "0.01em",
             color: "#FBF2E9",
           }}
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={viewportSettings}
+          transition={{ duration: 0.8, ease: "easeOut" }}
         >
           Ready to transform your space?
-        </h2>
+        </motion.h2>
 
-        <p
+        <motion.p
           className="text-base md:text-lg leading-relaxed mb-10 max-w-2xl mx-auto"
           style={{ color: "#D9CCC2" }}
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={viewportSettings}
+          transition={{ delay: 0.1, duration: 0.8, ease: "easeOut" }}
         >
           Bring your vision to life with expertly crafted modular interiors
           designed for comfort, functionality, and lasting quality.
-        </p>
+        </motion.p>
 
-        <button
+        <motion.button
           type="button"
           className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 text-sm font-semibold transition-opacity hover:opacity-90"
           style={{ backgroundColor: "#FFFFFF", color: "#3D2A1D" }}
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={viewportSettings}
+          transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }}
         >
           Request a Free Consultation Today
           <ArrowRight size={16} />
-        </button>
+        </motion.button>
 
-        <div
+        {/* Bottom copyright area */}
+        <motion.div
           className="mt-16 pt-6 flex flex-col md:flex-row items-center justify-between gap-3"
           style={{ borderTop: "1px solid rgba(255,255,255,0.15)" }}
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={viewportSettings}
+          transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
         >
           <p style={{ color: "#FBF2E9" }}>
             <span
@@ -76,7 +87,7 @@ export default function Footer() {
           <p className="text-sm" style={{ color: "#B7A99C" }}>
             © 2026 Create Modular Interiors. All rights reserved.
           </p>
-        </div>
+        </motion.div>
       </div>
     </footer>
   );
