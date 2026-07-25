@@ -41,14 +41,72 @@ select {
 .home-header {
   position: relative;
   width: 100%;
-  min-height: 100vh;
+  min-height: 200vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-image: url('/no-furniture.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background: #ffffff;
+}
+
+.home-header__video {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  z-index: 1;
+  opacity: 1;
+  transition: opacity 0.8s ease-in-out;
+  will-change: opacity;
+
+}
+
+.home-header__video--fade-out {
+  opacity: 0;
+  pointer-events: none; /* let mouse events reach the couch reveal canvas below */
+}
+
+.home-header__ending-couch {
+  /* This is now a container <div> wrapping a <canvas> (day/night mouse-trail
+     reveal). The cover/position math is replicated in JS — keep the 20.29%
+     value below in sync with the objectPositionY prop passed to
+     CouchRevealCanvas in Header.tsx. */
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  opacity: 1;
+  /* object-position: center 20.29%; — reference value, applied via canvas draw logic */
+}
+
+.home-header__ending-couch-shell {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  transform: scale(1.03);
+  transform-origin: center center;
+  overflow: hidden;
+}
+/* Gradient overlay */
+.home-header__ending-couch-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+
+  background: linear-gradient(
+    180deg,
+    rgba(223, 214, 201, 0) 63.02%,
+    #DFD6C9 100%
+  );
+}
+
+.home-header__ending-couch-motion {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
 }
 
 .home-header__overlay {
@@ -56,6 +114,8 @@ select {
   inset: 0;
   width: 100%;
   height: 100%;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .home-header__couch-base {
@@ -112,13 +172,17 @@ select {
 
 .home-header__inner {
   position: absolute;
-  inset: 0;
-  z-index: 1;
+top: 150px;
+  left: 0;
+  right: 0;
+
   display: flex;
-  align-items: center;
   justify-content: center;
-  padding: 40px 24px;
   text-align: center;
+}
+
+.home-header__text-shell {
+  will-change: transform, opacity;
 }
 
 .home-header__inner h1 {

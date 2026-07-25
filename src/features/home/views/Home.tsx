@@ -1,7 +1,6 @@
 // src/features/home/views/Home.tsx
 import { useEffect, useState } from "react";
 import { useHomeViewModel } from "../viewModels/useHomeViewModel";
-import { useHeaderViewModel } from "../viewModels/useHeaderViewModel"; // Import the view model
 import { Header } from "./Header";
 import { ServiceOverview } from "./ServiceOverview";
 import ProjectsCarousel from "./ProjectsCarousel.tsx";
@@ -15,8 +14,7 @@ export function Home() {
   const viewModel = useHomeViewModel();
   void viewModel;
 
-  // Grab the real scrolled state straight from the header context
-  const { scrolled: isHeaderScrolled } = useHeaderViewModel();
+  const isHeaderScrolled = false;
   const [activeSection, setActiveSection] = useState<string>("header");
 
   useEffect(() => {
@@ -51,8 +49,7 @@ export function Home() {
   }, []);
 
   return (
-    <div className="relative min-h-screen bg-[#121212] text-white">
-      {/* Pass the exact header scroll transition boolean down to the nav */}
+    <div className="home-page-shell relative min-h-screen">
       <Navbar
         activeSection={activeSection}
         isHeaderScrolled={isHeaderScrolled}
