@@ -183,11 +183,10 @@ top: 150px;
 
 .home-header__text-shell {
   will-change: transform, opacity;
-}
-
-.home-header__inner h1 {
-  margin: 0;
-  font-family: 'The Bold Font', system-ui, sans-serif;
+  /* Parent .home-header__overlay has pointer-events: none so clicks/hover
+     pass through to the video/couch canvas behind it — but that also blocks
+     hover/click on this text itself unless we explicitly opt back in here. */
+  pointer-events: auto;
 }
 
 .home-header__subtitle {
@@ -195,17 +194,18 @@ top: 150px;
   font-weight: 200;
   font-size: clamp(2.5rem, 2.5vw, 1.4rem);
   margin-bottom: 40px;
-  color: #64554f;
+  color: inherit; /* Allow parent SpotlightColorReveal to control color */
+}
+
+.home-header__inner h1 {
+  margin: 0;
+  font-family: 'The Bold Font', system-ui, sans-serif;
+  color: inherit; /* Allow parent SpotlightColorReveal to control color */
   transition: color 0.35s ease;
 }
 
 .home-header__subtitle--scrolled {
   color: #FFCC73;
-}
-
-.home-header__inner h1 {
-  color: #64554f;
-  transition: color 0.35s ease;
 }
 
 .home-header__title--scrolled {

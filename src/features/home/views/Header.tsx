@@ -127,8 +127,7 @@ const CouchRevealCanvas = forwardRef<
   const TRAIL_FADE_MS = 1200;
 
   // --- Click-to-night tunables ---
-  const NIGHT_TRANSITION_MS = 2200;
-
+  const NIGHT_TRANSITION_MS = 1000;
   const triggerNightToggle = useCallback(
     (clientX: number, clientY: number) => {
       const canvas = canvasRef.current;
@@ -231,7 +230,12 @@ const CouchRevealCanvas = forwardRef<
       triggerNightToggle(e.clientX, e.clientY);
     };
 
-    canvas.addEventListener("pointermove", handlePointerMove);
+    // Listen on window, not the canvas element: the text overlay sits on top
+    // of this canvas and now has pointer-events: auto (so its own hover
+    // spotlight works), which means it swallows pointermove while the cursor
+    // is over the letters. Tracking on window keeps the couch trail following
+    // the cursor everywhere, instead of freezing at the text's edge.
+    window.addEventListener("pointermove", handlePointerMove);
     canvas.addEventListener("click", handleClick);
 
     const render = () => {
@@ -379,7 +383,7 @@ const CouchRevealCanvas = forwardRef<
     rafRef.current = requestAnimationFrame(render);
 
     return () => {
-      canvas.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointermove", handlePointerMove);
       canvas.removeEventListener("click", handleClick);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
@@ -405,29 +409,19 @@ type SpotlightColorRevealProps = {
   accentColor: string;
   nightStateRef: React.RefObject<NightState>;
   className?: string;
-  /** Hover spotlight radius in px. Scale this up for larger text (e.g. CREATE). */
-  spotRadius?: number;
 };
 
 /**
  * Renders a base copy of `children` in standard base color (#4C3E39), and an
  * identical top overlay copy in `accentColor` (#FFCC73). The top layer is
  * dynamically masked by mouse movement and night progress, cleanly transforming
- * whatever text is passed in.
- *
- * Multiple instances can share the same `nightStateRef` — the click-driven
- * night-mode radial wipe (Priority 1 below) will stay perfectly synchronized
- * across all of them, since they all read the same origin/progress values.
- * Only the hover spotlight (Priority 2) is instance-local, which is why
- * `spotRadius` is configurable per instance (a 200px heading needs a much
- * bigger spotlight than a small subtitle line to feel proportional).
+ * subtitle AND CREATE text simultaneously.
  */
 function SpotlightColorReveal({
   children,
   accentColor,
   nightStateRef,
   className,
-  spotRadius = 130,
 }: SpotlightColorRevealProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -438,6 +432,7 @@ function SpotlightColorReveal({
   const rafRef = useRef<number | null>(null);
 
   const SPOT_EASE = 0.09;
+  const SPOT_RADIUS = 130;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -450,12 +445,17 @@ function SpotlightColorReveal({
         x: e.clientX - rect.left,
         y: e.clientY - rect.top,
       };
+    };
 
-      isHoveredRef.current =
-        e.clientX >= rect.left &&
-        e.clientX <= rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY <= rect.bottom;
+    // Use real hit-testing (pointerenter/pointerleave) instead of manually
+    // comparing coordinates against container.getBoundingClientRect(). A
+    // transformed descendant (e.g. the CREATE <motion.h1> animating to
+    // `y: -115`) renders outside its parent's untransformed layout box, so a
+    // manual rect comparison never matches where the text actually is.
+    // pointerenter/pointerleave fire based on the browser's real hit-test,
+    // which correctly accounts for transforms on any descendant.
+    const handlePointerEnter = () => {
+      isHoveredRef.current = true;
     };
 
     const handlePointerLeave = () => {
@@ -463,6 +463,7 @@ function SpotlightColorReveal({
     };
 
     window.addEventListener("pointermove", handlePointerMove);
+    container.addEventListener("pointerenter", handlePointerEnter);
     container.addEventListener("pointerleave", handlePointerLeave);
 
     const render = () => {
@@ -494,7 +495,7 @@ function SpotlightColorReveal({
             (targetRef.current.y - posRef.current.y) * SPOT_EASE;
         }
 
-        const mask = `radial-gradient(circle ${spotRadius}px at ${posRef.current.x}px ${posRef.current.y}px, black 0%, transparent 100%)`;
+        const mask = `radial-gradient(circle ${SPOT_RADIUS}px at ${posRef.current.x}px ${posRef.current.y}px, black 0%, transparent 100%)`;
 
         overlay.style.maskImage = mask;
         overlay.style.webkitMaskImage = mask;
@@ -508,10 +509,11 @@ function SpotlightColorReveal({
 
     return () => {
       window.removeEventListener("pointermove", handlePointerMove);
+      container.removeEventListener("pointerenter", handlePointerEnter);
       container.removeEventListener("pointerleave", handlePointerLeave);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [nightStateRef, spotRadius]);
+  }, [nightStateRef]);
 
   return (
     <div
@@ -519,7 +521,7 @@ function SpotlightColorReveal({
       className={`relative inline-block ${className ?? ""}`}
     >
       {/* Base Layer (#4C3E39) */}
-      <div className="relative z-0 text-[#4C3E39] [&_*]:!color-inherit transition-colors duration-300">
+      <div className="relative z-0 text-[#4C3E39] [&_*]:!text-inherit transition-colors duration-300">
         {children}
       </div>
 
@@ -527,7 +529,7 @@ function SpotlightColorReveal({
       <div
         ref={overlayRef}
         aria-hidden="true"
-        className="absolute inset-0 z-10 pointer-events-none [&_*]:!color-inherit transition-opacity duration-300"
+        className="absolute inset-0 z-10 pointer-events-none [&_*]:!text-inherit transition-opacity duration-300"
         style={{
           color: accentColor,
           opacity: 0,
@@ -679,10 +681,10 @@ export function Header() {
               y: textYOffset,
             }}
           >
-            {/* Subtitle — its own reveal instance, default (small) spotlight radius */}
             <SpotlightColorReveal
               accentColor="#FFCC73"
               nightStateRef={nightStateRef}
+              className="flex flex-col items-center justify-center"
             >
               <motion.div
                 className="home-header__subtitle"
@@ -696,16 +698,7 @@ export function Header() {
               >
                 Designed for living. built for you.
               </motion.div>
-            </SpotlightColorReveal>
 
-            {/* CREATE — same shared nightStateRef keeps the click wipe in sync,
-                but a much larger spotRadius so the hover spotlight feels
-                proportional against 200px text. */}
-            <SpotlightColorReveal
-              accentColor="#FFCC73"
-              nightStateRef={nightStateRef}
-              spotRadius={280}
-            >
               <motion.h1
                 className="text-[200px] font-bold"
                 initial={{ opacity: 0, y: -65 }}
