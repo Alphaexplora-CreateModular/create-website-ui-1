@@ -46,7 +46,7 @@ export default function Footer() {
 
         <motion.button
           type="button"
-          className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 text-sm font-semibold transition-opacity hover:opacity-90"
+          className="inline-flex items-center justify-center gap-2  px-8 py-4 text-sm font-semibold transition-opacity hover:opacity-90"
           style={{ backgroundColor: "#FFFFFF", color: "#3D2A1D" }}
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}

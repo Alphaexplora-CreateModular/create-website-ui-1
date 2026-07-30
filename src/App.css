@@ -23,7 +23,7 @@ body,
 
 body {
   font-family: system-ui, sans-serif;
-  background: #ffffff;
+  background: #DFD6C9;
   color: #000000;
 }
 
@@ -232,7 +232,7 @@ top: 150px;
 .service-overview {
   position: relative;
   padding: 100px 24px;
-  background: #fff;
+  background: #DFD6C9;
 }
 
 .service-overview__inner {
@@ -275,7 +275,7 @@ top: 150px;
 .service-overview__button {
   font-family: 'Poppins', system-ui, sans-serif;
   border: 1px solid transparent;
-  border-radius: 999px;
+  
   padding: 16px 28px;
   cursor: pointer;
   transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
@@ -301,7 +301,7 @@ top: 150px;
   width: 100%;
   min-height: 420px;
   overflow: hidden;
-  border-radius: 32px;
+  
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.12);
   cursor: pointer;
 }

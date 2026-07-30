@@ -1,4 +1,3 @@
-// src/features/home/views/ServiceOverview.tsx
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useServiceOverviewViewModel } from "../viewModels/useServiceOverviewViewModel";
@@ -7,17 +6,16 @@ export function ServiceOverview() {
   const { activeNight, onMouseEnter, onMouseLeave, onClick } =
     useServiceOverviewViewModel();
 
-  // 1. Create a ref for the image wrapper to track its viewport position
+  // Create a ref for the image wrapper to track its viewport position
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 2. Track scroll precisely when this specific element passes through the screen
+  // Track scroll precisely when this specific element passes through the screen
   const { scrollYProgress } = useScroll({
     target: containerRef,
-    offset: ["start end", "end start"], // Triggers from when it enters the bottom to when it exits the top
+    offset: ["start end", "end start"], // Triggers from entering the bottom to exiting the top
   });
 
-  // 3. Map the viewport progress to a translation range.
-  // We offset it from a negative to a positive value so it covers the container spaces perfectly.
+  // Map viewport progress to a translation range for the parallax effect
   const imageY = useTransform(scrollYProgress, [0, 1], [-60, 60]);
 
   return (
@@ -33,6 +31,7 @@ export function ServiceOverview() {
           >
             MODULAR INTERIORS, CRAFTED TO LAST.
           </motion.h2>
+
           <motion.p
             className="service-overview__description"
             initial={{ opacity: 0, y: 24 }}
@@ -45,6 +44,7 @@ export function ServiceOverview() {
             your life — from kitchens and wardrobes to office furniture and
             storage systems.
           </motion.p>
+
           <motion.div
             className="service-overview__actions"
             initial={{ opacity: 0, y: 24 }}
@@ -61,10 +61,11 @@ export function ServiceOverview() {
           </motion.div>
         </div>
 
-        {/* 4. Added containerRef and CSS clipping properties */}
         <motion.div
           ref={containerRef}
-          className={`service-overview__image-wrapper overflow-hidden relative ${activeNight ? "active" : ""}`}
+          className={`service-overview__image-wrapper overflow-hidden relative ${
+            activeNight ? "active" : ""
+          }`}
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: false, amount: 0.35 }}
@@ -73,7 +74,6 @@ export function ServiceOverview() {
           onMouseLeave={onMouseLeave}
           onClick={onClick}
         >
-          {/* 5. Converted to motion.img, scaled them up slightly to avoid blanks, and bound the imageY style */}
           <motion.img
             style={{ y: imageY }}
             className="service-overview__image service-overview__image--day scale-115 object-cover w-full h-full"

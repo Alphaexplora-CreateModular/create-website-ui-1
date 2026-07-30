@@ -1,87 +1,68 @@
-import { useCallback, useState } from "react";
+import { useRef } from "react";
+import { useScroll, useTransform, type MotionValue } from "framer-motion";
 
 export type Project = {
-  image: string;
+  num: string;
   title: string;
-  description: string;
+  desc: string;
+  image: string;
 };
 
 const projects: Project[] = [
   {
-    image: "/public/couch.png",
-    title: "Sample Title",
-    description:
-      "We discuss your needs, style preferences, budget, and project requirements.",
-  },
-  {
-    image: "/public/couch.png",
+    num: "[ 01 ]",
     title: "Modern Loft Redesign",
-    description:
-      "A full interior overhaul balancing warmth and minimalism for city living.",
+    desc: "Whether you're building a new home, renovating a space, or upgrading your business",
+    image: "/images/project_1.jpg",
   },
   {
-    image: "/public/couch.png",
+    num: "[ 02 ]",
+    title: "Minimalist Villa",
+    desc: "Seamlessly blending contemporary architecture with natural landscapes.",
+    image: "/images/project_2.jpg",
+  },
+  {
+    num: "[ 03 ]",
+    title: "Urban Penthouse",
+    desc: "Luxury living elevated through bespoke interiors and panoramic city views.",
+    image: "/images/project_3.jpg",
+  },
+  {
+    num: "[ 04 ]",
+    title: "Commercial Hub",
+    desc: "Designing functional, high-energy workspaces built for modern collaboration.",
+    image: "/images/project_4.jpg",
+  },
+  {
+    num: "[ 05 ]",
     title: "Coastal Retreat",
-    description:
-      "Light-filled spaces with natural textures inspired by the shoreline.",
-  },
-  {
-    image: "/public/couch.png",
-    title: "Urban Studio Refresh",
-    description:
-      "Compact, functional design that makes every square foot count.",
-  },
-  {
-    image: "/public/couch.png",
-    title: "Family Living Space",
-    description:
-      "Durable, welcoming interiors designed around everyday family life.",
+    desc: "Harmonizing rich wooden tones and open spaces with seaside serene vibes.",
+    image: "/images/project_5.jpg",
   },
 ];
 
-const MAX_VISIBLE_OFFSET = 2;
-const BG_COLOR = "#3a2f2a";
+export function useProjectCardViewModel() {
+  const cardRef = useRef<HTMLDivElement>(null);
 
-export function useProjectsCarouselViewModel() {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [direction, setDirection] = useState<"next" | "prev">("next");
-  const total = projects.length;
+  const { scrollYProgress } = useScroll({
+    target: cardRef,
+    offset: ["start end", "start start"],
+  });
 
-  const goTo = useCallback(
-    (index: number, dir: "next" | "prev") => {
-      setDirection(dir);
-      setActiveIndex(((index % total) + total) % total);
-    },
-    [total],
-  );
-
-  const handlePrev = useCallback(() => {
-    goTo(activeIndex - 1, "prev");
-  }, [activeIndex, goTo]);
-
-  const handleNext = useCallback(() => {
-    goTo(activeIndex + 1, "next");
-  }, [activeIndex, goTo]);
-
-  const getOffset = useCallback(
-    (index: number) => {
-      let offset = index - activeIndex;
-      if (offset > total / 2) offset -= total;
-      if (offset < -total / 2) offset += total;
-      return offset;
-    },
-    [activeIndex, total],
-  );
+  const opacity = useTransform(scrollYProgress, [0, 0.8], [0, 1]);
+  const imageScale = useTransform(scrollYProgress, [0, 1], [1.25, 1]);
+  const imageRadius = useTransform(scrollYProgress, [0, 1], ["40px", "0px"]);
 
   return {
+    cardRef,
+    opacity,
+    imageScale,
+    imageRadius,
+  };
+}
+
+export function useProjectsCarouselViewModel() {
+  return {
     projects,
-    activeIndex,
-    direction,
-    handlePrev,
-    handleNext,
-    goTo,
-    getOffset,
-    BG_COLOR,
-    MAX_VISIBLE_OFFSET,
   };
 }

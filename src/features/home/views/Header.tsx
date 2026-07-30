@@ -1,4 +1,3 @@
-// src/features/home/views/Header.tsx
 import {
   forwardRef,
   useCallback,
@@ -8,75 +7,32 @@ import {
   useState,
 } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
-
-/**
- * Mimics `object-fit: cover` + `object-position` for a canvas drawImage call.
- * Keep objectPositionX/Y in sync with the CSS `object-position` values used
- * elsewhere for the couch artwork (currently `center 20.29%`).
- */
-function drawCover(
-  ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  canvasW: number,
-  canvasH: number,
-  objectPositionXPercent: number,
-  objectPositionYPercent: number,
-) {
-  if (!img.complete || !img.naturalWidth || !img.naturalHeight) return;
-
-  const imgW = img.naturalWidth;
-  const imgH = img.naturalHeight;
-
-  const scale = Math.max(canvasW / imgW, canvasH / imgH);
-  const drawW = imgW * scale;
-  const drawH = imgH * scale;
-
-  const offsetX = (canvasW - drawW) * (objectPositionXPercent / 100);
-  const offsetY = (canvasH - drawH) * (objectPositionYPercent / 100);
-
-  ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
-}
-
-function easeOutCubic(t: number) {
-  const clamped = Math.min(1, Math.max(0, t));
-  return 1 - Math.pow(1 - clamped, 3);
-}
-
-function easeInOutCubic(t: number) {
-  const clamped = Math.min(1, Math.max(0, t));
-  return clamped < 0.5
-    ? 4 * clamped * clamped * clamped
-    : 1 - Math.pow(-2 * clamped + 2, 3) / 2;
-}
+import {
+  drawCover,
+  easeInOutCubic,
+  easeOutCubic,
+} from "../viewModels/useHeaderViewModel";
 
 type NightState = {
-  progress: number; // 0 (day) to 1 (night), eased over NIGHT_TRANSITION_MS
-  origin: { x: number; y: number } | null; // click point, in viewport (client) coordinates
+  progress: number;
+  origin: { x: number; y: number } | null;
   isNight: boolean;
 };
 
 type CouchRevealCanvasProps = {
   daySrc: string;
   nightSrc: string;
-  /** Must match the `object-position` used for the day/night couch art. */
   objectPositionX?: number;
   objectPositionY?: number;
   className?: string;
-  /** Shared, mutable night-transition state — written here, read by SpotlightColorReveal. */
   nightStateRef: React.RefObject<NightState>;
   onToggleNight?: (isNight: boolean) => void;
 };
 
-/** Imperative handle so other elements (e.g. the headline text) can drive
- * the exact same night-toggle transition as clicking the couch itself. */
 export type CouchRevealCanvasHandle = {
-  triggerNightToggle: (clientX: number, clientY: number) => void;
+  triggerNightToggle: (clientX?: number, clientY?: number) => void;
 };
 
-/**
- * Renders the day couch image on top of the night couch image and reveals
- * the night layer underneath with a fluid streak mask.
- */
 const CouchRevealCanvas = forwardRef<
   CouchRevealCanvasHandle,
   CouchRevealCanvasProps
@@ -115,27 +71,33 @@ const CouchRevealCanvas = forwardRef<
   const nightTransitionStartRef = useRef(0);
   const nightOriginRef = useRef<{ x: number; y: number } | null>(null);
 
-  // --- Hover streak tunables ---
+  const scrollScaleRef = useRef(1);
+
   const POINTER_EASE = 0.09;
-  const BASE_RADIUS = 60;
+  const BASE_RADIUS = 150;
   const STRETCH_FACTOR = 2.6;
   const MAX_LENGTH_RADIUS = 260;
   const WIDTH_SHRINK_FACTOR = 0.9;
   const MIN_WIDTH_RADIUS = 26;
-  const MASK_BLUR_PX = 16;
+  const MASK_BLUR_PX = 10;
   const TRAIL_HOLD_MS = 2000;
   const TRAIL_FADE_MS = 1200;
-
-  // --- Click-to-night tunables ---
   const NIGHT_TRANSITION_MS = 1000;
+
   const triggerNightToggle = useCallback(
-    (clientX: number, clientY: number) => {
+    (clientX?: number, clientY?: number) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
 
       const rect = canvas.getBoundingClientRect();
-      const x = (clientX - rect.left) * (canvas.width / rect.width);
-      const y = (clientY - rect.top) * (canvas.height / rect.height);
+      const defaultX = rect.width / 2;
+      const defaultY = rect.height / 2;
+
+      const posX = clientX !== undefined ? clientX - rect.left : defaultX;
+      const posY = clientY !== undefined ? clientY - rect.top : defaultY;
+
+      const x = posX * (canvas.width / rect.width);
+      const y = posY * (canvas.height / rect.height);
 
       nightOriginRef.current = { x, y };
       isNightRef.current = !isNightRef.current;
@@ -145,7 +107,10 @@ const CouchRevealCanvas = forwardRef<
 
       if (nightStateRef.current) {
         nightStateRef.current.isNight = isNightRef.current;
-        nightStateRef.current.origin = { x: clientX, y: clientY };
+        nightStateRef.current.origin = {
+          x: clientX ?? window.innerWidth / 2,
+          y: clientY ?? window.innerHeight / 2,
+        };
       }
 
       onToggleNight?.(isNightRef.current);
@@ -208,6 +173,30 @@ const CouchRevealCanvas = forwardRef<
   }, []);
 
   useEffect(() => {
+    const handleScroll = () => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      const currentScroll = Math.max(0, -rect.top);
+
+      const OFFSET_PX = 20;
+      const targetScrollDistance = Math.max(1, rect.height - OFFSET_PX);
+
+      const progress = Math.min(
+        1,
+        Math.max(0, currentScroll / targetScrollDistance),
+      );
+      scrollScaleRef.current = 1 - progress;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const mainCtx = canvas.getContext("2d");
@@ -230,11 +219,6 @@ const CouchRevealCanvas = forwardRef<
       triggerNightToggle(e.clientX, e.clientY);
     };
 
-    // Listen on window, not the canvas element: the text overlay sits on top
-    // of this canvas and now has pointer-events: auto (so its own hover
-    // spotlight works), which means it swallows pointermove while the cursor
-    // is over the letters. Tracking on window keeps the couch trail following
-    // the cursor everywhere, instead of freezing at the text's edge.
     window.addEventListener("pointermove", handlePointerMove);
     canvas.addEventListener("click", handleClick);
 
@@ -246,6 +230,7 @@ const CouchRevealCanvas = forwardRef<
       const nightImg = nightImgRef.current;
       const now = performance.now();
       const dpr = sizeRef.current.dpr || 1;
+      const scrollScale = scrollScaleRef.current;
 
       const target = targetPointerRef.current;
       if (target) {
@@ -280,12 +265,14 @@ const CouchRevealCanvas = forwardRef<
         if (maskCtx) {
           maskCtx.clearRect(0, 0, width, height);
           maskCtx.save();
-          maskCtx.filter = `blur(${MASK_BLUR_PX * dpr}px)`;
-          maskCtx.fillStyle = "#ffffff";
+          maskCtx.filter = `blur(${MASK_BLUR_PX * dpr * scrollScale}px)`;
 
-          if (nightOriginRef.current && nightProgressRef.current > 0.001) {
+          const currentNightProgress = nightProgressRef.current;
+
+          if (nightOriginRef.current && currentNightProgress > 0.001) {
             const maxRadius = Math.hypot(width, height);
-            const radius = maxRadius * nightProgressRef.current;
+            const radius = maxRadius * currentNightProgress;
+            maskCtx.fillStyle = "#ffffff";
             maskCtx.globalAlpha = 1;
             maskCtx.beginPath();
             maskCtx.arc(
@@ -298,7 +285,7 @@ const CouchRevealCanvas = forwardRef<
             maskCtx.fill();
           }
 
-          if (headRef.current && holdFade > 0.001) {
+          if (headRef.current && holdFade > 0.001 && scrollScale > 0.001) {
             const head = headRef.current;
             const prevHead = prevHeadRef.current ?? head;
             const speed = Math.hypot(head.x - prevHead.x, head.y - prevHead.y);
@@ -310,16 +297,29 @@ const CouchRevealCanvas = forwardRef<
               );
             }
 
+            const baseRadiusScaled = BASE_RADIUS * dpr * scrollScale;
+            const maxLengthScaled = MAX_LENGTH_RADIUS * dpr * scrollScale;
+            const minWidthScaled = MIN_WIDTH_RADIUS * dpr * scrollScale;
+
             const lengthRadius = Math.min(
-              MAX_LENGTH_RADIUS * dpr,
-              BASE_RADIUS * dpr + speed * STRETCH_FACTOR,
+              maxLengthScaled,
+              baseRadiusScaled + speed * STRETCH_FACTOR * scrollScale,
             );
             const widthRadius = Math.max(
-              MIN_WIDTH_RADIUS * dpr,
-              BASE_RADIUS * dpr - speed * WIDTH_SHRINK_FACTOR,
+              minWidthScaled,
+              baseRadiusScaled - speed * WIDTH_SHRINK_FACTOR * scrollScale,
             );
 
-            maskCtx.globalAlpha = holdFade;
+            maskCtx.globalAlpha = holdFade * scrollScale;
+
+            if (currentNightProgress > 0.5) {
+              maskCtx.globalCompositeOperation = "destination-out";
+              maskCtx.fillStyle = "#ffffff";
+            } else {
+              maskCtx.globalCompositeOperation = "source-over";
+              maskCtx.fillStyle = "#ffffff";
+            }
+
             maskCtx.beginPath();
             maskCtx.ellipse(
               head.x,
@@ -404,27 +404,26 @@ const CouchRevealCanvas = forwardRef<
   );
 });
 
-type SpotlightColorRevealProps = {
-  children: React.ReactNode;
+type SpotlightLogoRevealProps = {
+  logoSrc: string;
   accentColor: string;
   nightStateRef: React.RefObject<NightState>;
   className?: string;
+  heightClassName?: string;
+  nightHoverColor?: string;
 };
 
-/**
- * Renders a base copy of `children` in standard base color (#4C3E39), and an
- * identical top overlay copy in `accentColor` (#FFCC73). The top layer is
- * dynamically masked by mouse movement and night progress, cleanly transforming
- * subtitle AND CREATE text simultaneously.
- */
-function SpotlightColorReveal({
-  children,
+function SpotlightLogoReveal({
+  logoSrc,
   accentColor,
   nightStateRef,
   className,
-}: SpotlightColorRevealProps) {
+  heightClassName = "h-50",
+  nightHoverColor = "#4C3E39",
+}: SpotlightLogoRevealProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
+  const nightPunchOverlayRef = useRef<HTMLDivElement | null>(null);
 
   const targetRef = useRef<{ x: number; y: number } | null>(null);
   const posRef = useRef<{ x: number; y: number } | null>(null);
@@ -437,6 +436,7 @@ function SpotlightColorReveal({
   useEffect(() => {
     const container = containerRef.current;
     const overlay = overlayRef.current;
+    const nightPunchOverlay = nightPunchOverlayRef.current;
     if (!container || !overlay) return;
 
     const handlePointerMove = (e: PointerEvent) => {
@@ -447,13 +447,6 @@ function SpotlightColorReveal({
       };
     };
 
-    // Use real hit-testing (pointerenter/pointerleave) instead of manually
-    // comparing coordinates against container.getBoundingClientRect(). A
-    // transformed descendant (e.g. the CREATE <motion.h1> animating to
-    // `y: -115`) renders outside its parent's untransformed layout box, so a
-    // manual rect comparison never matches where the text actually is.
-    // pointerenter/pointerleave fire based on the browser's real hit-test,
-    // which correctly accounts for transforms on any descendant.
     const handlePointerEnter = () => {
       isHoveredRef.current = true;
     };
@@ -470,22 +463,7 @@ function SpotlightColorReveal({
       const night = nightStateRef.current;
       const rect = container.getBoundingClientRect();
 
-      // Priority 1: Clicked state (Night Mode expansion/reversion)
-      if (night && night.origin && night.progress > 0.0001) {
-        const localX = night.origin.x - rect.left;
-        const localY = night.origin.y - rect.top;
-
-        const maxRadius = Math.hypot(window.innerWidth, window.innerHeight);
-        const currentRadius = maxRadius * night.progress;
-
-        const mask = `radial-gradient(circle ${currentRadius}px at ${localX}px ${localY}px, black 0%, black 90%, transparent 100%)`;
-
-        overlay.style.maskImage = mask;
-        overlay.style.webkitMaskImage = mask;
-        overlay.style.opacity = "1";
-      }
-      // Priority 2: Hover state spotlight
-      else if (targetRef.current) {
+      if (targetRef.current) {
         if (!posRef.current) {
           posRef.current = { ...targetRef.current };
         } else {
@@ -494,12 +472,40 @@ function SpotlightColorReveal({
           posRef.current.y +=
             (targetRef.current.y - posRef.current.y) * SPOT_EASE;
         }
+      }
 
-        const mask = `radial-gradient(circle ${SPOT_RADIUS}px at ${posRef.current.x}px ${posRef.current.y}px, black 0%, transparent 100%)`;
+      if (night && night.origin && night.progress > 0.0001) {
+        const localX = night.origin.x - rect.left;
+        const localY = night.origin.y - rect.top;
+
+        const maxRadius = Math.hypot(window.innerWidth, window.innerHeight);
+        const currentRadius = maxRadius * night.progress;
+
+        const mask = `radial-gradient(circle ${currentRadius}px at ${localX}px ${localY}px, black 0%, black 100%, transparent 100%)`;
+
+        overlay.style.maskImage = mask;
+        overlay.style.webkitMaskImage = mask;
+        overlay.style.opacity = "1";
+      } else if (posRef.current) {
+        const mask = `radial-gradient(circle ${SPOT_RADIUS}px at ${posRef.current.x}px ${posRef.current.y}px, black 0%, black 100%, transparent 100%)`;
 
         overlay.style.maskImage = mask;
         overlay.style.webkitMaskImage = mask;
         overlay.style.opacity = isHoveredRef.current ? "1" : "0";
+      }
+
+      if (nightPunchOverlay) {
+        const isFullyNight = !!night?.isNight;
+
+        if (isFullyNight && posRef.current) {
+          const mask = `radial-gradient(circle ${SPOT_RADIUS}px at ${posRef.current.x}px ${posRef.current.y}px, black 0%, black 100%, transparent 100%)`;
+
+          nightPunchOverlay.style.maskImage = mask;
+          nightPunchOverlay.style.webkitMaskImage = mask;
+          nightPunchOverlay.style.opacity = isHoveredRef.current ? "1" : "0";
+        } else {
+          nightPunchOverlay.style.opacity = "0";
+        }
       }
 
       rafRef.current = requestAnimationFrame(render);
@@ -515,33 +521,67 @@ function SpotlightColorReveal({
     };
   }, [nightStateRef]);
 
+  const shapeMask: React.CSSProperties = {
+    WebkitMaskImage: `url(${logoSrc})`,
+    maskImage: `url(${logoSrc})`,
+    WebkitMaskRepeat: "no-repeat",
+    maskRepeat: "no-repeat",
+    WebkitMaskPosition: "center",
+    maskPosition: "center",
+    WebkitMaskSize: "contain",
+    maskSize: "contain",
+  };
+
   return (
     <div
       ref={containerRef}
-      className={`relative inline-block ${className ?? ""}`}
+      className={`relative inline-block ${heightClassName} ${className ?? ""}`}
     >
-      {/* Base Layer (#4C3E39) */}
-      <div className="relative z-0 text-[#4C3E39] [&_*]:!text-inherit transition-colors duration-300">
-        {children}
-      </div>
+      <img
+        src={logoSrc}
+        alt="Logo"
+        className={`relative z-0 ${heightClassName} w-auto object-contain select-none pointer-events-none transition-opacity duration-300`}
+      />
 
-      {/* Synchronized Accent Layer (#FFCC73) */}
       <div
         ref={overlayRef}
         aria-hidden="true"
-        className="absolute inset-0 z-10 pointer-events-none [&_*]:!text-inherit transition-opacity duration-300"
-        style={{
-          color: accentColor,
-          opacity: 0,
-        }}
+        className="absolute inset-0 z-10 pointer-events-none transition-opacity duration-300"
+        style={{ opacity: 0 }}
       >
-        {children}
+        <div
+          className={`${heightClassName} w-full`}
+          style={{
+            backgroundColor: accentColor,
+            ...shapeMask,
+          }}
+        />
+      </div>
+
+      <div
+        ref={nightPunchOverlayRef}
+        aria-hidden="true"
+        className="absolute inset-0 z-20 pointer-events-none transition-opacity duration-300"
+        style={{ opacity: 0 }}
+      >
+        <div
+          className={`${heightClassName} w-full`}
+          style={{
+            backgroundColor: nightHoverColor,
+            ...shapeMask,
+          }}
+        />
       </div>
     </div>
   );
 }
 
-export function Header() {
+interface HeaderProps {
+  isNightMode: boolean;
+  onToggleNight: (isNight?: boolean) => void;
+}
+
+export function Header({ isNightMode, onToggleNight }: HeaderProps) {
   const isFirstMount = useRef(true);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const couchCanvasRef = useRef<CouchRevealCanvasHandle | null>(null);
@@ -557,10 +597,9 @@ export function Header() {
 
   const { scrollY } = useScroll();
 
-  const couchYOffset = useTransform(scrollY, [0, 320], [0, 90]);
+  const couchYOffset = useTransform(scrollY, [0, 600], [0, 200]);
   const textOpacity = useTransform(scrollY, [0, 280], [1, 0]);
   const textYOffset = useTransform(scrollY, [0, 280], [0, 24]);
-
   const scrollHintOpacity = useTransform(scrollY, [0, 120], [1, 0]);
   const scrollHintY = useTransform(scrollY, [0, 120], [0, 20]);
 
@@ -569,16 +608,18 @@ export function Header() {
   }, []);
 
   useEffect(() => {
+    if (nightStateRef.current.isNight !== isNightMode) {
+      couchCanvasRef.current?.triggerNightToggle();
+    }
+  }, [isNightMode]);
+
+  useEffect(() => {
     const preventScroll = (e: WheelEvent) => {
-      if (!videoFinished) {
-        e.preventDefault();
-      }
+      if (!videoFinished) e.preventDefault();
     };
 
     const preventTouch = (e: TouchEvent) => {
-      if (!videoFinished) {
-        e.preventDefault();
-      }
+      if (!videoFinished) e.preventDefault();
     };
 
     const preventKeys = (e: KeyboardEvent) => {
@@ -611,18 +652,14 @@ export function Header() {
 
   const handleVideoEnded = () => {
     if (!videoRef.current) return;
-
     videoRef.current.currentTime = videoRef.current.duration;
     videoRef.current.pause();
-
     setVideoFinished(true);
   };
 
   const handleVideoTimeUpdate = () => {
     if (!videoRef.current || fadeToCouch) return;
-
     const { duration, currentTime } = videoRef.current;
-
     if (!Number.isFinite(duration) || duration <= 0) return;
 
     if (duration - currentTime <= 0.5) {
@@ -631,8 +668,7 @@ export function Header() {
   };
 
   return (
-    <section className="home-header">
-      {/* Couch behind video */}
+    <section className="home-header relative overflow-hidden">
       <div className="home-header__ending-couch-shell">
         <motion.div
           className="home-header__ending-couch-motion"
@@ -646,6 +682,7 @@ export function Header() {
             objectPositionY={20.29}
             className="home-header__ending-couch"
             nightStateRef={nightStateRef}
+            onToggleNight={(nextNightState) => onToggleNight(nextNightState)}
           />
         </motion.div>
       </div>
@@ -670,7 +707,7 @@ export function Header() {
         animate={{ opacity: 1 }}
         transition={{ delay: 5, duration: 2, ease: "easeOut" }}
       >
-        <div className="home-header__inner flex flex-col items-center justify-center">
+        <div className="home-header__inner flex flex-col items-center justify-center mt-20">
           <motion.div
             className="home-header__text-shell flex flex-col items-center justify-center cursor-pointer"
             onClick={(e) =>
@@ -681,41 +718,25 @@ export function Header() {
               y: textYOffset,
             }}
           >
-            <SpotlightColorReveal
-              accentColor="#FFCC73"
-              nightStateRef={nightStateRef}
-              className="flex flex-col items-center justify-center"
+            <motion.div
+              initial={{ opacity: 0, y: -65 }}
+              animate={{ opacity: 1, y: -115 }}
+              transition={{
+                delay: 5.3,
+                duration: 2,
+                ease: "easeOut",
+              }}
             >
-              <motion.div
-                className="home-header__subtitle"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  delay: isFirstMount.current ? 1.9 : 0,
-                  duration: 0.6,
-                  ease: "easeOut",
-                }}
-              >
-                Designed for living. built for you.
-              </motion.div>
-
-              <motion.h1
-                className="text-[200px] font-bold"
-                initial={{ opacity: 0, y: -65 }}
-                animate={{ opacity: 1, y: -115 }}
-                transition={{
-                  delay: 5.3,
-                  duration: 2,
-                  ease: "easeOut",
-                }}
-              >
-                CREATE
-              </motion.h1>
-            </SpotlightColorReveal>
+              <SpotlightLogoReveal
+                logoSrc="/logo-brown.svg"
+                accentColor="#FFCC73"
+                nightStateRef={nightStateRef}
+                heightClassName="h-50"
+              />
+            </motion.div>
           </motion.div>
         </div>
 
-        {/* Scroll Down Instruction */}
         {videoFinished && (
           <motion.div
             className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center text-[#4C3E39]"

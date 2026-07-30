@@ -72,7 +72,7 @@ const offers: OfferItem[] = [
 
 export default function Offers() {
   return (
-    <section className="bg-white text-neutral-900 py-24 px-6 md:px-12 lg:px-24 overflow-hidden">
+    <section className=" text-neutral-900 py-24 px-6 md:px-12 lg:px-24 overflow-hidden">
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
         <div className="flex flex-col items-center text-center mb-16">
@@ -134,7 +134,7 @@ export default function Offers() {
                   boxShadow:
                     "0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.08)",
                 }}
-                className="group flex flex-col p-8 bg-neutral-50 border border-neutral-200/80 transition-all duration-300 rounded-sm"
+                className="group flex flex-col p-8  border  transition-all duration-300 rounded-sm"
               >
                 {/* Lucide Icon Wrapper */}
                 <div className="text-[#3a2f2a] mb-6 transform group-hover:scale-110 transition-all duration-300">

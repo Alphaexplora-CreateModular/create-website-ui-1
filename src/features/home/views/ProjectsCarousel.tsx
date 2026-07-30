@@ -1,295 +1,79 @@
 "use client";
 
-import { useRef } from "react";
+import { motion } from "framer-motion";
 import {
-  motion,
-  useMotionValue,
-  useSpring,
-  useScroll,
-  useTransform,
-  MotionValue,
-} from "framer-motion";
-import { useProjectsCarouselViewModel } from "../viewModels/useProjectsCarouselViewModel";
-import type { Project } from "../viewModels/useProjectsCarouselViewModel";
+  type Project,
+  useProjectCardViewModel,
+  useProjectsCarouselViewModel,
+} from "../viewModels/useProjectsCarouselViewModel";
 
-export default function ProjectsCarousel() {
-  const {
-    projects,
-    activeIndex,
-    handlePrev,
-    handleNext,
-    goTo,
-    getOffset,
-    BG_COLOR,
-    MAX_VISIBLE_OFFSET,
-  } = useProjectsCarouselViewModel();
-
-  // Mouse-following Blob Physics
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-
-  const springConfig = { damping: 30, stiffness: 120, mass: 0.8 };
-  const blobX = useSpring(mouseX, springConfig);
-  const blobY = useSpring(mouseY, springConfig);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-
-    // Centers the interactive blob on the cursor
-    mouseX.set(e.clientX - rect.left - 150);
-    mouseY.set(e.clientY - rect.top - 150);
-  };
-
-  // 1. Hook into the scroll progress tracking this specific section
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start end", "end start"],
-  });
-
-  return (
-    <section
-      ref={containerRef}
-      onMouseMove={handleMouseMove}
-      className="relative flex flex-col items-center bg-[#3a2f2a] py-20 px-4 overflow-hidden"
-    >
-      {/* 🔮 1. Interactive Mouse-Following Blob */}
-      <motion.div
-        className="pointer-events-none absolute top-0 left-0 w-[300px] h-[300px] rounded-full filter blur-[60px] opacity-35 mix-blend-screen z-25"
-        style={{
-          x: blobX,
-          y: blobY,
-          background:
-            "radial-gradient(circle, rgba(234,179,8,1) 0%, rgba(249,115,22,0.4) 50%, rgba(0,0,0,0) 100%)",
-        }}
-      />
-
-      {/* 🌊 2. Autonomous Floating Blob */}
-      <motion.div
-        className="pointer-events-none absolute w-[350px] h-[350px] rounded-full filter blur-[80px] opacity-25 mix-blend-screen z-25"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(239,68,68,0.8) 0%, rgba(120,53,4,0.3) 60%, rgba(0,0,0,0) 100%)",
-        }}
-        animate={{
-          x: ["10vw", "70vw", "40vw", "80vw", "20vw", "10vw"],
-          y: ["10vh", "50vh", "80vh", "30vh", "70vh", "10vh"],
-          scale: [1, 1.2, 0.9, 1.1, 0.8, 1],
-        }}
-        transition={{
-          duration: 25,
-          ease: "easeInOut",
-          repeat: Infinity,
-          repeatType: "mirror",
-        }}
-      />
-
-      {/* Header section (z-10) */}
-      <div className="relative z-10 flex flex-col items-center justify-center gap-1 text-center ">
-        <motion.h2
-          className="projects-title text-4xl md:text-5xl tracking-wide text-white uppercase "
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false, amount: 0.35 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-        >
-          Our Projects
-        </motion.h2>
-        <motion.p
-          className="projects-subtitle text-white/70 text-base md:text-lg"
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: false, amount: 0.35 }}
-          transition={{ delay: 0.1, duration: 0.8, ease: "easeOut" }}
-        >
-          Quality workmanship, thoughtful design
-        </motion.p>
-      </div>
-
-      {/* Carousel container */}
-      <motion.div
-        className="relative z-10 flex items-center justify-center w-full max-w-[min(100vw-48px,1800px)]"
-        initial={{ opacity: 0, y: 40 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: false, amount: 0.25 }}
-        transition={{ delay: 0.15, duration: 0.8, ease: "easeOut" }}
-      >
-        <button
-          onClick={handlePrev}
-          aria-label="Previous project"
-          className="absolute left-0 z-30 flex h-10 w-10 items-center justify-center rounded-full text-white/70 hover:text-white transition-colors"
-        >
-          <ChevronLeft />
-        </button>
-
-        <div className="relative h-105 w-full overflow-hidden perspective-distant">
-          {projects.map((project, index) => {
-            const offset = getOffset(index);
-            const isActive = offset === 0;
-
-            if (Math.abs(offset) > MAX_VISIBLE_OFFSET) return null;
-
-            const translateX = offset * 260;
-            const scale = isActive ? 1 : Math.abs(offset) === 1 ? 0.78 : 0.62;
-            const zIndex = 10 - Math.abs(offset);
-
-            return (
-              <div
-                key={index}
-                className="absolute left-1/2 top-1/2 transition-all duration-500 ease-in-out"
-                style={{
-                  transform: `translate(-50%, -50%) translateX(${translateX}px) scale(${scale})`,
-                  opacity: 1,
-                  zIndex,
-                }}
-              >
-                {/* 2. Passed the parent scroll value down to the Card */}
-                <Card
-                  project={project}
-                  index={index}
-                  isActive={isActive}
-                  scrollYProgress={scrollYProgress}
-                  onClick={() =>
-                    !isActive &&
-                    goTo(index, index > activeIndex ? "next" : "prev")
-                  }
-                />
-              </div>
-            );
-          })}
-
-          {/* Left Side Gradient Overlay */}
-          <div
-            className="pointer-events-none absolute left-0 top-0 z-20 h-full w-24 md:w-40"
-            style={{
-              background: `linear-gradient(to right, ${BG_COLOR}, transparent)`,
-            }}
-          />
-          {/* Right Side Gradient Overlay */}
-          <div
-            className="pointer-events-none absolute right-0 top-0 z-20 h-full w-24 md:w-40"
-            style={{
-              background: `linear-gradient(to left, ${BG_COLOR}, transparent)`,
-            }}
-          />
-        </div>
-
-        {/* Arrow Buttons */}
-        <button
-          onClick={handleNext}
-          aria-label="Next project"
-          className="absolute right-0 z-30 flex h-10 w-10 items-center justify-center rounded-full text-white/70 hover:text-white transition-colors"
-        >
-          <ChevronRight />
-        </button>
-      </motion.div>
-
-      {/* Navigation dots */}
-      <motion.div
-        className="relative z-10 flex items-center justify-center gap-2 mt-8"
-        initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: false, amount: 0.35 }}
-        transition={{ delay: 0.25, duration: 0.8, ease: "easeOut" }}
-      >
-        {projects.map((_, index) => (
-          <button
-            key={index}
-            aria-label={`Go to project ${index + 1}`}
-            onClick={() => goTo(index, index > activeIndex ? "next" : "prev")}
-            className={`rounded-full transition-all duration-300 ${
-              index === activeIndex
-                ? "h-2.5 w-2.5 bg-white"
-                : "h-2 w-2 bg-white/40 hover:bg-white/60"
-            }`}
-          />
-        ))}
-      </motion.div>
-    </section>
-  );
-}
-
-export { ProjectsCarousel };
-
-// 3. Updated Card interface to accept scroll variables
-function Card({
-  project,
-  index,
-  isActive,
-  scrollYProgress,
-  onClick,
-}: {
+type ProjectCardProps = {
   project: Project;
   index: number;
-  isActive: boolean;
-  scrollYProgress: MotionValue<number>;
-  onClick: () => void;
-}) {
-  const imageNumber = (index % 5) + 1;
-  const imageSrc = `/images/project_${imageNumber}.jpg`;
+};
 
-  // 4. Transform the scroll into individual graphic Y drift positions
-  const imageY = useTransform(scrollYProgress, [0, 1], [-40, 40]);
+function ProjectCard({ project, index }: ProjectCardProps) {
+  const { cardRef, opacity, imageScale, imageRadius } =
+    useProjectCardViewModel();
 
   return (
     <div
-      onClick={onClick}
-      className={`relative w-85 md:w-105 bg-white shadow-2xl overflow-hidden ${
-        isActive ? "cursor-default" : "cursor-pointer"
-      }`}
-      style={{ opacity: isActive ? 1 : 0.8 }}
+      ref={cardRef}
+      className="sticky top-0 w-full h-screen flex items-center justify-center bg-[#DFD6C9]"
+      style={{ zIndex: index + 1 }}
     >
-      <div className="relative">
-        {/* 5. Added overflow-hidden to clip the image when moving inside the border */}
-        <div className="relative h-55 w-full overflow-hidden border-10 border-white/80">
-          {/* 6. Converted to motion.img, scaled to prevent white empty gaps, and bound styling */}
+      <motion.div
+        style={{ opacity }}
+        className="w-full h-full flex flex-row items-center justify-center gap-4 px-[100px] py-[100px] shadow-[0_-3px_25.9px_0_rgba(0,0,0,0.25)]"
+      >
+        {/* COLUMN 1: Vertical Sidebar */}
+        <div className="flex flex-col items-center w-[10%] h-full justify-between py-10">
+          <div className="[writing-mode:vertical-rl] rotate-180 text-center text-[#4C3E39] font-montserrat text-lg font-normal tracking-widest uppercase">
+            Our Projects
+          </div>
+          <span className="text-[#4C3E39] font-poppins text-lg font-normal">
+            {project.num}
+          </span>
+        </div>
+
+        {/* COLUMN 2: Details */}
+        <div className="flex flex-col gap-6 items-start w-[40%] h-full justify-center pr-10">
+          <span className="text-[#4C3E39] font-['THE_BOLD_FONT'] text-[65.17px] font-bold leading-none">
+            {project.title}
+          </span>
+          <span className="text-[#4C3E39] font-poppins text-lg font-normal">
+            {project.desc}
+          </span>
+          <span className="text-[#4C3E39] font-poppins text-md font-semibold cursor-pointer hover:underline">
+            View more →
+          </span>
+        </div>
+
+        {/* COLUMN 3: Image Container */}
+        <div className="w-auto h-full overflow-hidden relative">
           <motion.img
-            style={{ y: imageY }}
-            src={imageSrc}
+            src={project.image}
             alt={project.title}
-            className="h-full w-full object-cover scale-115"
+            style={{
+              scale: imageScale,
+              borderRadius: imageRadius,
+            }}
+            className="w-[400px] h-full object-cover transition-all ease-out duration-300"
           />
         </div>
-        <div className="flex flex-col items-center text-center gap-1 px-6 py-5">
-          <h3 className="font-bold text-sm text-neutral-900">
-            {project.title}
-          </h3>
-          <p className="projects-description text-xs text-neutral-500 leading-relaxed">
-            {project.description}
-          </p>
-        </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
 
-function ChevronLeft() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="white"
-      strokeWidth="2"
-    >
-      <path d="M15 18l-6-6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
+export default function ProjectsCarousel() {
+  const { projects } = useProjectsCarouselViewModel();
 
-function ChevronRight() {
   return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="white"
-      strokeWidth="2"
-    >
-      <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <div className="relative w-full bg-[#DFD6C9]">
+      {projects.map((project, index) => (
+        <ProjectCard key={project.num} project={project} index={index} />
+      ))}
+    </div>
   );
 }
