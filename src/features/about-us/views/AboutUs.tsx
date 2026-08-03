@@ -170,20 +170,23 @@ export function AboutUs() {
   const isAnimatingRef = useRef(false);
   const activeTimeUpdateHandler = useRef<(() => void) | null>(null);
   const reverseSeekCleanupRef = useRef<(() => void) | null>(null);
+  const forwardLoopCleanupRef = useRef<(() => void) | null>(null);
   const scrollRafIdRef = useRef<number | null>(null);
 
-  // -1 = no gallery image has been revealed yet (so the first one also
-  // gets an iris-in rather than just appearing).
   const galleryDisplayedIndexRef = useRef(-1);
   const galleryTransitionActiveRef = useRef(false);
-  const galleryTransitionRafRef = useRef<number | null>(null);
+  const galleryTransitionCleanupRef = useRef<(() => void) | null>(null);
 
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
 
   useLayoutEffect(() => {
-    // Prevent the browser from restoring a mid-scroll position on refresh,
-    // which would desync the scroll-driven animation state from the DOM's
-    // initial (unstyled) render.
+    GALLERY_ITEMS.forEach((item) => {
+      const img = new Image();
+      img.src = item.image;
+    });
+  }, []);
+
+  useLayoutEffect(() => {
     if (typeof window !== "undefined" && "scrollRestoration" in history) {
       history.scrollRestoration = "manual";
     }
@@ -202,27 +205,72 @@ export function AboutUs() {
       }
     };
 
+    const supportsFrameCallback =
+      typeof (video as any).requestVideoFrameCallback === "function";
+
     const playForwardTo = (target: number, onDone: () => void) => {
       cleanupTimeUpdate();
       reverseSeekCleanupRef.current?.();
+      forwardLoopCleanupRef.current?.();
 
       isAnimatingRef.current = true;
       video.playbackRate = 1;
 
-      const onTimeUpdate = () => {
-        if (video.currentTime >= target - 0.03) {
-          video.pause();
-          video.currentTime = target;
-          cleanupTimeUpdate();
-          isAnimatingRef.current = false;
-          onDone();
+      let frameCallbackId: number | null = null;
+      let stopped = false;
+
+      const cancelLoop = () => {
+        if (stopped) return;
+        stopped = true;
+        cleanupTimeUpdate();
+        if (
+          frameCallbackId !== null &&
+          typeof (video as any).cancelVideoFrameCallback === "function"
+        ) {
+          (video as any).cancelVideoFrameCallback(frameCallbackId);
+        }
+        if (forwardLoopCleanupRef.current === cancelLoop) {
+          forwardLoopCleanupRef.current = null;
         }
       };
 
-      activeTimeUpdateHandler.current = onTimeUpdate;
-      video.addEventListener("timeupdate", onTimeUpdate);
+      const finish = () => {
+        if (stopped) return;
+        cancelLoop();
+        video.pause();
+        video.currentTime = target;
+        isAnimatingRef.current = false;
+        onDone();
+      };
+
+      const checkTime = () => {
+        if (video.currentTime >= target - 0.03) {
+          finish();
+          return true;
+        }
+        return false;
+      };
+
+      if (supportsFrameCallback) {
+        const onFrame = () => {
+          if (stopped) return;
+          if (!checkTime()) {
+            frameCallbackId = (video as any).requestVideoFrameCallback(onFrame);
+          }
+        };
+        frameCallbackId = (video as any).requestVideoFrameCallback(onFrame);
+      } else {
+        const onTimeUpdate = () => {
+          checkTime();
+        };
+        activeTimeUpdateHandler.current = onTimeUpdate;
+        video.addEventListener("timeupdate", onTimeUpdate);
+      }
+
+      forwardLoopCleanupRef.current = cancelLoop;
+
       video.play().catch(() => {
-        cleanupTimeUpdate();
+        cancelLoop();
         video.currentTime = target;
         isAnimatingRef.current = false;
         onDone();
@@ -236,6 +284,7 @@ export function AboutUs() {
     ) => {
       cleanupTimeUpdate();
       reverseSeekCleanupRef.current?.();
+      forwardLoopCleanupRef.current?.();
 
       video.pause();
       isAnimatingRef.current = true;
@@ -246,29 +295,27 @@ export function AboutUs() {
 
       let cancelled = false;
       let rafId: number | null = null;
+      let seekPending = false;
 
       const cleanup = () => {
         cancelled = true;
         if (rafId !== null) cancelAnimationFrame(rafId);
+        video.removeEventListener("seeked", onSeeked);
         if (reverseSeekCleanupRef.current === cleanup) {
           reverseSeekCleanupRef.current = null;
         }
       };
 
-      // Drive purely off elapsed wall-clock time each animation frame,
-      // rather than waiting for the previous seek to fully resolve.
-      // Setting currentTime again while a seek is still in flight just
-      // redirects the browser to the newest target instead of queueing
-      // up behind a slow keyframe decode — this is what keeps reverse
-      // scrubbing feeling as responsive as forward playback.
+      const onSeeked = () => {
+        seekPending = false;
+      };
+      video.addEventListener("seeked", onSeeked);
+
       const step = () => {
         if (cancelled) return;
 
         const elapsed = performance.now() - startTime;
         const progress = Math.min(elapsed / durationMs, 1);
-        const nextTime = startVideoTime + totalVideoDelta * progress;
-
-        video.currentTime = nextTime;
 
         if (progress >= 1) {
           cleanup();
@@ -276,6 +323,12 @@ export function AboutUs() {
           isAnimatingRef.current = false;
           onDone();
           return;
+        }
+
+        if (!seekPending) {
+          const nextTime = startVideoTime + totalVideoDelta * progress;
+          seekPending = true;
+          video.currentTime = nextTime;
         }
 
         rafId = requestAnimationFrame(step);
@@ -302,6 +355,7 @@ export function AboutUs() {
 
       const onDone = () => {
         isAnimatingRef.current = false;
+        syncStageToScroll();
       };
 
       if (nextStage > previousStage) {
@@ -311,22 +365,14 @@ export function AboutUs() {
       }
     };
 
-    const easeInOutCubic = (t: number) =>
-      t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
     const cancelGalleryTransition = () => {
-      if (galleryTransitionRafRef.current !== null) {
-        cancelAnimationFrame(galleryTransitionRafRef.current);
-        galleryTransitionRafRef.current = null;
+      if (galleryTransitionCleanupRef.current) {
+        galleryTransitionCleanupRef.current();
+        galleryTransitionCleanupRef.current = null;
       }
       galleryTransitionActiveRef.current = false;
     };
 
-    // Runs a single self-contained iris reveal: the incoming image sits
-    // on top of the outgoing one and is masked by a soft-edged circle
-    // that grows from a point to full coverage. Once started it plays to
-    // completion on a fixed timer — it does not need to be scrubbed by
-    // continued scrolling.
     const startGalleryIris = (toIndex: number) => {
       const fromIndex = galleryDisplayedIndexRef.current;
       if (toIndex === fromIndex) return;
@@ -344,15 +390,23 @@ export function AboutUs() {
       }
 
       const rect = centerEl.getBoundingClientRect();
-      const cornerDist = Math.sqrt(rect.width ** 2 + rect.height ** 2) / 2;
-      const feather = Math.max(50, cornerDist * 0.28);
-      const maxRadius = cornerDist + feather * 0.5;
+      const maxRadius = Math.sqrt(rect.width ** 2 + rect.height ** 2) / 2 + 12;
+
+      const setClip = (el: HTMLElement, value: string) => {
+        el.style.clipPath = value;
+        (el.style as unknown as Record<string, string>).webkitClipPath = value;
+      };
+      const setClipTransition = (el: HTMLElement, value: string) => {
+        el.style.transition = value;
+        (el.style as unknown as Record<string, string>).webkitTransition =
+          value.replace("clip-path", "-webkit-clip-path");
+      };
 
       GALLERY_ITEMS.forEach((_, idx) => {
         const el = galleryItemRefs.current[idx];
         if (!el || idx === toIndex) return;
-        el.style.webkitMaskImage = "none";
-        el.style.maskImage = "none";
+        setClipTransition(el, "none");
+        setClip(el, "none");
         el.style.pointerEvents = "none";
         if (idx === fromIndex) {
           el.style.opacity = "1";
@@ -363,34 +417,41 @@ export function AboutUs() {
         }
       });
 
+      setClipTransition(toItem, "none");
+      setClip(toItem, "circle(0px at 50% 50%)");
       toItem.style.opacity = "1";
       toItem.style.zIndex = "2";
       toItem.style.pointerEvents = "none";
 
+      void toItem.offsetWidth;
+
       const duration = 900;
-      const start = performance.now();
+      setClipTransition(
+        toItem,
+        `clip-path ${duration}ms cubic-bezier(0.65, 0, 0.35, 1)`,
+      );
+      setClip(toItem, `circle(${maxRadius}px at 50% 50%)`);
 
-      const frame = (now: number) => {
-        const elapsed = now - start;
-        const t = Math.min(1, elapsed / duration);
-        const eased = easeInOutCubic(t);
-        const r = eased * maxRadius;
-        const inner = Math.max(0, r - feather);
-        const maskValue = `radial-gradient(circle at 50% 50%, #000 0px, #000 ${inner}px, transparent ${r}px)`;
-        toItem.style.webkitMaskImage = maskValue;
-        toItem.style.maskImage = maskValue;
+      let settled = false;
+      let timeoutId: number | null = null;
 
-        if (t < 1) {
-          galleryTransitionRafRef.current = requestAnimationFrame(frame);
-          return;
+      const finishReveal = () => {
+        if (settled) return;
+        settled = true;
+        toItem.removeEventListener("transitionend", onTransitionEnd);
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        if (galleryTransitionCleanupRef.current === cleanup) {
+          galleryTransitionCleanupRef.current = null;
         }
 
-        toItem.style.webkitMaskImage = "none";
-        toItem.style.maskImage = "none";
+        setClipTransition(toItem, "none");
+        setClip(toItem, "none");
         toItem.style.zIndex = "1";
         galleryDisplayedIndexRef.current = toIndex;
         galleryTransitionActiveRef.current = false;
-        galleryTransitionRafRef.current = null;
 
         GALLERY_ITEMS.forEach((_, idx) => {
           if (idx === toIndex) return;
@@ -402,7 +463,26 @@ export function AboutUs() {
         });
       };
 
-      galleryTransitionRafRef.current = requestAnimationFrame(frame);
+      const onTransitionEnd = (e: TransitionEvent) => {
+        if (e.target !== toItem) return;
+        if (e.propertyName !== "clip-path") return;
+        finishReveal();
+      };
+      toItem.addEventListener("transitionend", onTransitionEnd);
+
+      timeoutId = window.setTimeout(finishReveal, duration + 200);
+
+      const cleanup = () => {
+        if (settled) return;
+        settled = true;
+        toItem.removeEventListener("transitionend", onTransitionEnd);
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+      };
+
+      galleryTransitionCleanupRef.current = cleanup;
     };
 
     const updateDOMForScroll = (progress: number) => {
@@ -414,7 +494,7 @@ export function AboutUs() {
       if (progress <= node0.end) {
         const p = progress / node0.end;
         introOpacity = Math.max(0, 1 - Math.pow(p, 1.2));
-        introTranslateY = -100 * p; // Full screen scroll up (-100vh)
+        introTranslateY = -100 * p;
       } else {
         introOpacity = 0;
         introTranslateY = -100;
@@ -434,33 +514,27 @@ export function AboutUs() {
         const prevNode = STAGE_NODES[stepStageIndex - 1];
 
         let opacity = 0;
-        let translateY = 100; // Start off-screen at the bottom (100vh)
+        let translateY = 100;
 
         if (progress < prevNode.start) {
-          // Below the trigger window: hidden at bottom
           opacity = 0;
           translateY = 100;
         } else if (progress < node.start) {
-          // Entering phase: transition from 100vh -> 0vh (center)
           const enterProgress =
             (progress - prevNode.start) / (node.start - prevNode.start);
           translateY = 100 * (1 - enterProgress);
-          // Fade in during the first half of entry
           opacity = Math.min(1, enterProgress * 2);
         } else if (progress <= node.end) {
-          // Active phase: slow transition from center (0vh) up to top exit position (-100vh)
           const activeProgress =
             (progress - node.start) / (node.end - node.start);
           translateY = -100 * activeProgress;
 
-          // Fade out during the final 30% of its duration
           if (activeProgress > 0.7) {
             opacity = 1 - (activeProgress - 0.7) / 0.3;
           } else {
             opacity = 1;
           }
         } else {
-          // Past phase: hidden beyond top
           opacity = 0;
           translateY = -100;
         }
@@ -473,9 +547,45 @@ export function AboutUs() {
         }
       }
 
-      // 3. Gallery & Video Opacity Calculations
+      // 3. Gallery Slide-Up & Video Hiding Logic
       const galleryStart = STAGE_NODES[4].start; // 0.45
       const galleryEnd = STAGE_NODES[4].end; // 1.00
+
+      // Slide-up trigger window between progress 0.36 and 0.45
+      const slideStart = 0.36;
+      const slideProgress = Math.max(
+        0,
+        Math.min(1, (progress - slideStart) / (galleryStart - slideStart)),
+      );
+
+      // Slide gallery container from 100vh down to 0vh
+      const galleryTranslateY = 100 * (1 - slideProgress);
+
+      if (galleryContainerRef.current) {
+        galleryContainerRef.current.style.transform = `translate3d(0, ${galleryTranslateY}vh, 0)`;
+        galleryContainerRef.current.style.opacity =
+          slideProgress > 0 ? "1" : "0";
+        galleryContainerRef.current.style.pointerEvents =
+          slideProgress >= 1 ? "auto" : "none";
+      }
+
+      // Hide the video section when the gallery completely covers the screen
+      if (videoContainerRef.current) {
+        if (slideProgress >= 1) {
+          videoContainerRef.current.style.opacity = "0";
+          videoContainerRef.current.style.visibility = "hidden";
+        } else {
+          videoContainerRef.current.style.opacity = "1";
+          videoContainerRef.current.style.visibility = "visible";
+        }
+      }
+
+      if (videoOverlayRef.current) {
+        videoOverlayRef.current.style.opacity =
+          introOpacity > 0 ? `${introOpacity}` : `${(1 - slideProgress) * 0.4}`;
+      }
+
+      // Internal gallery progress (0.0 to 1.0)
       const galleryRawProgress = Math.max(
         0,
         Math.min(1, (progress - galleryStart) / (galleryEnd - galleryStart)),
@@ -483,35 +593,9 @@ export function AboutUs() {
 
       const innerImageParallaxY = (0.5 - galleryRawProgress) * 24;
 
-      let videoOpacity = 1;
-      if (progress > 0.38 && progress <= galleryStart) {
-        videoOpacity = 1 - ((progress - 0.38) / (galleryStart - 0.38)) * 0.9;
-      } else if (progress > galleryStart) {
-        videoOpacity = galleryRawProgress > 0.05 ? 0 : 0.1;
-      }
-
-      if (videoContainerRef.current) {
-        videoContainerRef.current.style.opacity = `${videoOpacity}`;
-      }
-
-      if (videoOverlayRef.current) {
-        videoOverlayRef.current.style.opacity = `${
-          introOpacity > 0 ? introOpacity : videoOpacity * 0.4
-        }`;
-      }
-
-      if (galleryContainerRef.current) {
-        galleryContainerRef.current.style.opacity =
-          galleryRawProgress > 0 ? "1" : "0";
-        galleryContainerRef.current.style.pointerEvents =
-          galleryRawProgress > 0 ? "auto" : "none";
-      }
-
       const itemCount = GALLERY_ITEMS.length;
       const itemSegmentLength = 1 / itemCount;
 
-      // -1 means "haven't entered the gallery yet" so the first image
-      // also plays an iris-in instead of just appearing.
       const calculatedGalleryIndex =
         galleryRawProgress <= 0
           ? -1
@@ -520,9 +604,6 @@ export function AboutUs() {
               Math.floor(galleryRawProgress / itemSegmentLength),
             );
 
-      // Crossing a segment boundary just once is enough to kick the iris
-      // reveal off — it then runs to completion on its own fixed timer
-      // regardless of whether the user keeps scrolling.
       if (
         calculatedGalleryIndex >= 0 &&
         calculatedGalleryIndex !== galleryDisplayedIndexRef.current &&
@@ -597,8 +678,6 @@ export function AboutUs() {
         descTextRef.current.style.opacity = `${descOpacity}`;
       }
 
-      // Subtle continuous Ken-Burns pan/zoom on the images — independent
-      // of the iris reveal, which is entirely handled by startGalleryIris.
       GALLERY_ITEMS.forEach((_, idx) => {
         const imgEl = galleryImgRefs.current[idx];
         if (imgEl) {
@@ -607,57 +686,75 @@ export function AboutUs() {
       });
     };
 
+    const getTargetStageForProgress = (progress: number) => {
+      if (progress >= STAGE_NODES[4].start) return 4;
+      if (progress >= STAGE_NODES[3].start) return 3;
+      if (progress >= STAGE_NODES[2].start) return 2;
+      if (progress >= STAGE_NODES[1].start) return 1;
+      return 0;
+    };
+
+    const getScrollProgress = () => {
+      const container = containerRef.current;
+      if (!container) return null;
+      const rect = container.getBoundingClientRect();
+      const totalScrollableHeight = rect.height - window.innerHeight;
+      if (totalScrollableHeight <= 0) return null;
+      return Math.min(Math.max(-rect.top / totalScrollableHeight, 0), 1);
+    };
+
+    const syncStageToScroll = () => {
+      const progress = getScrollProgress();
+      if (progress === null) return;
+      const targetStage = getTargetStageForProgress(progress);
+      if (targetStage !== activeStepRef.current) {
+        transitionToStage(targetStage);
+      }
+    };
+
     const handleScroll = () => {
       if (scrollRafIdRef.current !== null) return;
 
       scrollRafIdRef.current = requestAnimationFrame(() => {
         scrollRafIdRef.current = null;
-        const container = containerRef.current;
-        if (!container) return;
-
-        const rect = container.getBoundingClientRect();
-        const totalScrollableHeight = rect.height - window.innerHeight;
-        if (totalScrollableHeight <= 0) return;
-
-        const progress = Math.min(
-          Math.max(-rect.top / totalScrollableHeight, 0),
-          1,
-        );
+        const progress = getScrollProgress();
+        if (progress === null) return;
 
         updateDOMForScroll(progress);
-
-        let targetStage = 0;
-        if (progress >= STAGE_NODES[4].start) {
-          targetStage = 4;
-        } else if (progress >= STAGE_NODES[3].start) {
-          targetStage = 3;
-        } else if (progress >= STAGE_NODES[2].start) {
-          targetStage = 2;
-        } else if (progress >= STAGE_NODES[1].start) {
-          targetStage = 1;
-        } else {
-          targetStage = 0;
-        }
-
-        if (targetStage !== activeStepRef.current && !isAnimatingRef.current) {
-          transitionToStage(targetStage);
-        }
+        syncStageToScroll();
       });
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
 
+    // Fix for tab navigation / refresh desync:
+    const initTimeout = setTimeout(() => {
+      window.scrollTo(0, 0);
+      const initialProgress = getScrollProgress();
+      if (initialProgress !== null) {
+        updateDOMForScroll(initialProgress);
+        const targetStage = getTargetStageForProgress(initialProgress);
+        activeStepRef.current = targetStage;
+        if (videoRef.current) {
+          videoRef.current.currentTime =
+            targetStage === 0
+              ? 0
+              : STEPS[Math.min(targetStage, STEPS.length) - 1].to;
+        }
+      }
+    }, 50);
+
     return () => {
+      clearTimeout(initTimeout);
       window.removeEventListener("scroll", handleScroll);
       if (scrollRafIdRef.current !== null) {
         cancelAnimationFrame(scrollRafIdRef.current);
       }
       cleanupTimeUpdate();
       reverseSeekCleanupRef.current?.();
-      if (galleryTransitionRafRef.current !== null) {
-        cancelAnimationFrame(galleryTransitionRafRef.current);
-      }
+      forwardLoopCleanupRef.current?.();
+      galleryTransitionCleanupRef.current?.();
     };
   }, []);
 
@@ -806,8 +903,13 @@ export function AboutUs() {
           {/* GALLERY PINNED SHOWCASE SECTION */}
           <div
             ref={galleryContainerRef}
-            className="absolute inset-0 z-30 flex items-center justify-center px-6 md:px-12 transform-gpu"
-            style={{ opacity: 0, pointerEvents: "none" }}
+            className="absolute inset-0 z-30 flex items-center justify-center px-6 md:px-12 bg-[#DFD6C9] transform-gpu"
+            style={{
+              willChange: "transform, opacity",
+              transform: "translate3d(0, 100vh, 0)",
+              opacity: 0,
+              pointerEvents: "none",
+            }}
           >
             <div className="relative flex w-full max-w-7xl items-center justify-between gap-6 md:gap-12">
               <div
@@ -848,9 +950,10 @@ export function AboutUs() {
                     }}
                     className="absolute inset-0 overflow-hidden transform-gpu"
                     style={{
-                      willChange: "opacity",
+                      willChange: "opacity, clip-path",
                       opacity: 0,
                       zIndex: 0,
+                      contain: "paint",
                     }}
                   >
                     <img
@@ -861,6 +964,11 @@ export function AboutUs() {
                       alt={item.title}
                       className="absolute inset-0 h-full w-full object-cover transform-gpu"
                       style={{ willChange: "transform" }}
+                      loading={idx === 0 ? "eager" : "lazy"}
+                      decoding="async"
+                      {...({
+                        fetchpriority: idx === 0 ? "high" : "auto",
+                      } as React.ImgHTMLAttributes<HTMLImageElement>)}
                     />
                     <div className="absolute inset-0 bg-black/10 pointer-events-none" />
                   </div>
