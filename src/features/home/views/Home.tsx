@@ -6,7 +6,7 @@ import { ServiceOverview } from "./ServiceOverview";
 import ProjectsCarousel from "./ProjectsCarousel";
 import { Process } from "./Process";
 import { Navbar } from "../../../shared/components/Navbar";
-import Footer from "./Footer";
+import Footer from "../../../shared/components/Footer";
 import Scroll from "../../../shared/components/Scroll";
 
 export function Home() {
