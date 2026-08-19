@@ -1,50 +1,51 @@
-import type { CSSProperties } from "react";
+import { useEffect } from "react";
+import { FlyInWords } from "../../../shared/components/FlyInWords";
 import type { AboutUsHeaderViewModel } from "../viewModels/useAboutUsHeaderViewModel";
 
-function FlyInWords({
-  text,
-  baseDelay,
-  stagger,
-  duration = 650,
-  flyDistance = 24,
+export function Header({
+  viewModel,
+  isNightMode,
 }: {
-  text: string;
-  baseDelay: number;
-  stagger: number;
-  duration?: number;
-  flyDistance?: number;
+  viewModel: AboutUsHeaderViewModel;
+  isNightMode: boolean;
 }) {
-  const words = text.split(" ");
-
-  return (
-    <>
-      {words.map((word, index) => (
-        <span key={word + index} style={{ display: "inline-block" }}>
-          <span
-            style={
-              {
-                display: "inline-block",
-                opacity: 0,
-                animationName: "flyInWord",
-                animationDuration: `${duration}ms`,
-                animationTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
-                animationDelay: `${baseDelay + index * stagger}ms`,
-                animationFillMode: "both",
-                ["--fly-y" as string]: `${flyDistance}px`,
-              } as CSSProperties
-            }
-          >
-            {word}
-          </span>
-          {index < words.length - 1 ? "\u00A0" : ""}
-        </span>
-      ))}
-    </>
-  );
-}
-
-export function Header({ viewModel }: { viewModel: AboutUsHeaderViewModel }) {
   const { data, refs } = viewModel;
+  const videoSrc = isNightMode
+    ? "/video/about_us_night.mp4"
+    : "/video/about_us.mp4";
+
+  useEffect(() => {
+    const video = refs.videoRef.current;
+    if (!video) return;
+
+    const savedTime = video.currentTime;
+    const shouldResumePlayback = !video.paused;
+
+    const restorePlaybackPosition = () => {
+      if (Number.isFinite(savedTime)) {
+        const maxTime = Number.isFinite(video.duration)
+          ? video.duration
+          : savedTime;
+        video.currentTime = Math.min(savedTime, Math.max(0, maxTime));
+      }
+
+      if (shouldResumePlayback) {
+        video.play().catch(() => {});
+      }
+    };
+
+    video.addEventListener("loadedmetadata", restorePlaybackPosition, {
+      once: true,
+    });
+
+    if (video.readyState >= 1) {
+      restorePlaybackPosition();
+    }
+
+    return () => {
+      video.removeEventListener("loadedmetadata", restorePlaybackPosition);
+    };
+  }, [isNightMode, refs.videoRef]);
 
   return (
     <>
@@ -77,7 +78,7 @@ export function Header({ viewModel }: { viewModel: AboutUsHeaderViewModel }) {
       >
         <video
           ref={refs.videoRef}
-          src="public/video/about_us.mp4"
+          src={videoSrc}
           className="absolute inset-0 h-full w-full object-cover"
           muted
           playsInline
@@ -143,10 +144,10 @@ export function Header({ viewModel }: { viewModel: AboutUsHeaderViewModel }) {
           ref={(el) => {
             refs.stepRefs.current[index] = el;
           }}
-          className={`absolute top-1/2 z-20 w-[88%] max-w-md px-6 sm:px-0 transform-gpu ${
+          className={`absolute top-1/2 z-20 inset-x-0 mx-auto w-[88%] max-w-md px-6 text-center transform-gpu sm:inset-x-auto sm:mx-0 sm:px-0 ${
             step.side === "left"
-              ? "left-6 text-left sm:left-16"
-              : "right-6 text-right sm:right-16"
+              ? "sm:left-16 sm:text-left"
+              : "sm:right-16 sm:text-right"
           }`}
           style={{
             willChange: "transform, opacity",

@@ -6,11 +6,21 @@ import {
   Images,
   LayoutGrid,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Navbar } from "../../../shared/components/Navbar";
 import { useProjectsShowcaseViewModel } from "../viewModels/useProjectsShowcaseViewModel";
 
-export function ProjectsShowcase() {
+type ProjectsShowcaseProps = {
+  isNightMode: boolean;
+  onToggleNight: () => void;
+};
+
+export function ProjectsShowcase({
+  isNightMode,
+  onToggleNight,
+}: ProjectsShowcaseProps) {
   const viewModel = useProjectsShowcaseViewModel();
+  const [isShowcaseInView, setIsShowcaseInView] = useState(true);
   const { projects } = viewModel.data;
   const { currentIndex, isGridView } = viewModel.state;
   const {
@@ -22,6 +32,29 @@ export function ProjectsShowcase() {
     setImgErrorMap,
   } = viewModel.actions;
 
+  useEffect(() => {
+    const updateShowcaseInView = () => {
+      const container = viewModel.refs.containerRef.current;
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      const navProbeY = 88;
+      const inView = rect.top <= navProbeY && rect.bottom >= navProbeY;
+      setIsShowcaseInView(inView);
+    };
+
+    window.addEventListener("scroll", updateShowcaseInView, { passive: true });
+    window.addEventListener("resize", updateShowcaseInView);
+    updateShowcaseInView();
+
+    return () => {
+      window.removeEventListener("scroll", updateShowcaseInView);
+      window.removeEventListener("resize", updateShowcaseInView);
+    };
+  }, [viewModel.refs.containerRef]);
+
+  const isWhiteNav = !isGridView && isShowcaseInView;
+
   return (
     <div
       ref={viewModel.refs.containerRef}
@@ -30,7 +63,12 @@ export function ProjectsShowcase() {
       }`}
     >
       <div className="absolute top-0 left-0 right-0 z-50">
-        <Navbar />
+        <Navbar
+          activeSection={isWhiteNav ? "header" : "content"}
+          isNightMode={isNightMode}
+          onToggleNight={onToggleNight}
+          forceWhiteText
+        />
       </div>
 
       {!isGridView ? (

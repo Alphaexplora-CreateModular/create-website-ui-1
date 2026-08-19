@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { useScroll, useTransform, type MotionValue } from "framer-motion";
+import { useScroll, useTransform } from "framer-motion";
 
 export type Project = {
   num: string;

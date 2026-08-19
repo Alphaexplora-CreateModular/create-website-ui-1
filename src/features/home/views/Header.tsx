@@ -1,398 +1,20 @@
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-} from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
-import {
-  drawCover,
-  easeInOutCubic,
-  easeOutCubic,
+  useHeaderViewModel,
+  type CouchRevealCanvasViewModel,
+  type SpotlightLogoRevealViewModel,
 } from "../viewModels/useHeaderViewModel";
 
-type NightState = {
-  progress: number;
-  origin: { x: number; y: number } | null;
-  isNight: boolean;
-};
-
 type CouchRevealCanvasProps = {
-  daySrc: string;
-  nightSrc: string;
-  objectPositionX?: number;
-  objectPositionY?: number;
+  refs: CouchRevealCanvasViewModel["refs"];
   className?: string;
-  nightStateRef: React.RefObject<NightState>;
-  onToggleNight?: (isNight: boolean) => void;
 };
 
-export type CouchRevealCanvasHandle = {
-  triggerNightToggle: (clientX?: number, clientY?: number) => void;
-};
-
-const CouchRevealCanvas = forwardRef<
-  CouchRevealCanvasHandle,
-  CouchRevealCanvasProps
->(function CouchRevealCanvas(
-  {
-    daySrc,
-    nightSrc,
-    objectPositionX = 50,
-    objectPositionY = 20.29,
-    className,
-    nightStateRef,
-    onToggleNight,
-  },
-  ref,
-) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const maskCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const tempCanvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  const dayImgRef = useRef<HTMLImageElement | null>(null);
-  const nightImgRef = useRef<HTMLImageElement | null>(null);
-
-  const targetPointerRef = useRef<{ x: number; y: number } | null>(null);
-  const headRef = useRef<{ x: number; y: number } | null>(null);
-  const prevHeadRef = useRef<{ x: number; y: number } | null>(null);
-  const angleRef = useRef<number>(0);
-  const lastMoveTimeRef = useRef<number>(0);
-  const sizeRef = useRef({ width: 0, height: 0, dpr: 1 });
-  const rafRef = useRef<number | null>(null);
-
-  const isNightRef = useRef(false);
-  const nightProgressRef = useRef(0);
-  const nightTargetRef = useRef(0);
-  const nightFromRef = useRef(0);
-  const nightTransitionStartRef = useRef(0);
-  const nightOriginRef = useRef<{ x: number; y: number } | null>(null);
-
-  const scrollScaleRef = useRef(1);
-
-  const POINTER_EASE = 0.09;
-  const BASE_RADIUS = 150;
-  const STRETCH_FACTOR = 2.6;
-  const MAX_LENGTH_RADIUS = 260;
-  const WIDTH_SHRINK_FACTOR = 0.9;
-  const MIN_WIDTH_RADIUS = 26;
-  const MASK_BLUR_PX = 10;
-  const TRAIL_HOLD_MS = 2000;
-  const TRAIL_FADE_MS = 1200;
-  const NIGHT_TRANSITION_MS = 1000;
-
-  const triggerNightToggle = useCallback(
-    (clientX?: number, clientY?: number) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const rect = canvas.getBoundingClientRect();
-      const defaultX = rect.width / 2;
-      const defaultY = rect.height / 2;
-
-      const posX = clientX !== undefined ? clientX - rect.left : defaultX;
-      const posY = clientY !== undefined ? clientY - rect.top : defaultY;
-
-      const x = posX * (canvas.width / rect.width);
-      const y = posY * (canvas.height / rect.height);
-
-      nightOriginRef.current = { x, y };
-      isNightRef.current = !isNightRef.current;
-      nightFromRef.current = nightProgressRef.current;
-      nightTargetRef.current = isNightRef.current ? 1 : 0;
-      nightTransitionStartRef.current = performance.now();
-
-      if (nightStateRef.current) {
-        nightStateRef.current.isNight = isNightRef.current;
-        nightStateRef.current.origin = {
-          x: clientX ?? window.innerWidth / 2,
-          y: clientY ?? window.innerHeight / 2,
-        };
-      }
-
-      onToggleNight?.(isNightRef.current);
-    },
-    [nightStateRef, onToggleNight],
-  );
-
-  useImperativeHandle(ref, () => ({ triggerNightToggle }), [
-    triggerNightToggle,
-  ]);
-
-  useEffect(() => {
-    if (!maskCanvasRef.current)
-      maskCanvasRef.current = document.createElement("canvas");
-    if (!tempCanvasRef.current)
-      tempCanvasRef.current = document.createElement("canvas");
-
-    const dayImg = new Image();
-    dayImg.src = daySrc;
-    dayImgRef.current = dayImg;
-
-    const nightImg = new Image();
-    nightImg.src = nightSrc;
-    nightImgRef.current = nightImg;
-  }, [daySrc, nightSrc]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    const canvas = canvasRef.current;
-    if (!container || !canvas) return;
-
-    const resize = () => {
-      const rect = container.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-      const width = Math.max(1, Math.round(rect.width * dpr));
-      const height = Math.max(1, Math.round(rect.height * dpr));
-
-      sizeRef.current = { width, height, dpr };
-
-      canvas.width = width;
-      canvas.height = height;
-
-      if (maskCanvasRef.current) {
-        maskCanvasRef.current.width = width;
-        maskCanvasRef.current.height = height;
-      }
-      if (tempCanvasRef.current) {
-        tempCanvasRef.current.width = width;
-        tempCanvasRef.current.height = height;
-      }
-    };
-
-    resize();
-
-    const resizeObserver = new ResizeObserver(resize);
-    resizeObserver.observe(container);
-
-    return () => resizeObserver.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const container = containerRef.current;
-      if (!container) return;
-
-      const rect = container.getBoundingClientRect();
-      const currentScroll = Math.max(0, -rect.top);
-
-      const OFFSET_PX = 20;
-      const targetScrollDistance = Math.max(1, rect.height - OFFSET_PX);
-
-      const progress = Math.min(
-        1,
-        Math.max(0, currentScroll / targetScrollDistance),
-      );
-      scrollScaleRef.current = 1 - progress;
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const mainCtx = canvas.getContext("2d");
-    if (!mainCtx) return;
-
-    const getLocalPoint = (clientX: number, clientY: number) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = (clientX - rect.left) * (canvas.width / rect.width);
-      const y = (clientY - rect.top) * (canvas.height / rect.height);
-      return { x, y };
-    };
-
-    const handlePointerMove = (e: PointerEvent) => {
-      const { x, y } = getLocalPoint(e.clientX, e.clientY);
-      targetPointerRef.current = { x, y };
-      lastMoveTimeRef.current = performance.now();
-    };
-
-    const handleClick = (e: MouseEvent) => {
-      triggerNightToggle(e.clientX, e.clientY);
-    };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    canvas.addEventListener("click", handleClick);
-
-    const render = () => {
-      const { width, height } = sizeRef.current;
-      const maskCanvas = maskCanvasRef.current;
-      const tempCanvas = tempCanvasRef.current;
-      const dayImg = dayImgRef.current;
-      const nightImg = nightImgRef.current;
-      const now = performance.now();
-      const dpr = sizeRef.current.dpr || 1;
-      const scrollScale = scrollScaleRef.current;
-
-      const target = targetPointerRef.current;
-      if (target) {
-        if (!headRef.current) {
-          headRef.current = { x: target.x, y: target.y };
-        } else {
-          headRef.current.x += (target.x - headRef.current.x) * POINTER_EASE;
-          headRef.current.y += (target.y - headRef.current.y) * POINTER_EASE;
-        }
-      }
-
-      const sinceMove = now - lastMoveTimeRef.current;
-      const holdFade =
-        sinceMove <= TRAIL_HOLD_MS
-          ? 1
-          : 1 - easeOutCubic((sinceMove - TRAIL_HOLD_MS) / TRAIL_FADE_MS);
-
-      const nightElapsed = now - nightTransitionStartRef.current;
-      const nightT = easeInOutCubic(
-        Math.min(1, Math.max(0, nightElapsed / NIGHT_TRANSITION_MS)),
-      );
-      nightProgressRef.current =
-        nightFromRef.current +
-        (nightTargetRef.current - nightFromRef.current) * nightT;
-
-      if (nightStateRef.current) {
-        nightStateRef.current.progress = nightProgressRef.current;
-      }
-
-      if (maskCanvas && width && height) {
-        const maskCtx = maskCanvas.getContext("2d");
-        if (maskCtx) {
-          maskCtx.clearRect(0, 0, width, height);
-          maskCtx.save();
-          maskCtx.filter = `blur(${MASK_BLUR_PX * dpr * scrollScale}px)`;
-
-          const currentNightProgress = nightProgressRef.current;
-
-          if (nightOriginRef.current && currentNightProgress > 0.001) {
-            const maxRadius = Math.hypot(width, height);
-            const radius = maxRadius * currentNightProgress;
-            maskCtx.fillStyle = "#ffffff";
-            maskCtx.globalAlpha = 1;
-            maskCtx.beginPath();
-            maskCtx.arc(
-              nightOriginRef.current.x,
-              nightOriginRef.current.y,
-              radius,
-              0,
-              Math.PI * 2,
-            );
-            maskCtx.fill();
-          }
-
-          if (headRef.current && holdFade > 0.001 && scrollScale > 0.001) {
-            const head = headRef.current;
-            const prevHead = prevHeadRef.current ?? head;
-            const speed = Math.hypot(head.x - prevHead.x, head.y - prevHead.y);
-
-            if (speed > 0.4 * dpr) {
-              angleRef.current = Math.atan2(
-                head.y - prevHead.y,
-                head.x - prevHead.x,
-              );
-            }
-
-            const baseRadiusScaled = BASE_RADIUS * dpr * scrollScale;
-            const maxLengthScaled = MAX_LENGTH_RADIUS * dpr * scrollScale;
-            const minWidthScaled = MIN_WIDTH_RADIUS * dpr * scrollScale;
-
-            const lengthRadius = Math.min(
-              maxLengthScaled,
-              baseRadiusScaled + speed * STRETCH_FACTOR * scrollScale,
-            );
-            const widthRadius = Math.max(
-              minWidthScaled,
-              baseRadiusScaled - speed * WIDTH_SHRINK_FACTOR * scrollScale,
-            );
-
-            maskCtx.globalAlpha = holdFade * scrollScale;
-
-            if (currentNightProgress > 0.5) {
-              maskCtx.globalCompositeOperation = "destination-out";
-              maskCtx.fillStyle = "#ffffff";
-            } else {
-              maskCtx.globalCompositeOperation = "source-over";
-              maskCtx.fillStyle = "#ffffff";
-            }
-
-            maskCtx.beginPath();
-            maskCtx.ellipse(
-              head.x,
-              head.y,
-              lengthRadius,
-              widthRadius,
-              angleRef.current,
-              0,
-              Math.PI * 2,
-            );
-            maskCtx.fill();
-          }
-
-          maskCtx.restore();
-        }
-      }
-
-      if (headRef.current) {
-        prevHeadRef.current = { x: headRef.current.x, y: headRef.current.y };
-      }
-
-      mainCtx.clearRect(0, 0, width, height);
-
-      if (nightImg) {
-        drawCover(
-          mainCtx,
-          nightImg,
-          width,
-          height,
-          objectPositionX,
-          objectPositionY,
-        );
-      }
-
-      if (tempCanvas && dayImg) {
-        const tempCtx = tempCanvas.getContext("2d");
-        if (tempCtx) {
-          tempCtx.clearRect(0, 0, width, height);
-          drawCover(
-            tempCtx,
-            dayImg,
-            width,
-            height,
-            objectPositionX,
-            objectPositionY,
-          );
-
-          if (maskCanvasRef.current) {
-            tempCtx.globalCompositeOperation = "destination-out";
-            tempCtx.drawImage(maskCanvasRef.current, 0, 0);
-            tempCtx.globalCompositeOperation = "source-over";
-          }
-
-          mainCtx.drawImage(tempCanvas, 0, 0);
-        }
-      }
-
-      rafRef.current = requestAnimationFrame(render);
-    };
-
-    rafRef.current = requestAnimationFrame(render);
-
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      canvas.removeEventListener("click", handleClick);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [objectPositionX, objectPositionY, nightStateRef, triggerNightToggle]);
-
+function CouchRevealCanvas({ refs, className }: CouchRevealCanvasProps) {
   return (
-    <div ref={containerRef} className={className}>
+    <div ref={refs.containerRef} className={className}>
       <canvas
-        ref={canvasRef}
+        ref={refs.canvasRef}
         style={{
           width: "100%",
           height: "100%",
@@ -402,125 +24,25 @@ const CouchRevealCanvas = forwardRef<
       />
     </div>
   );
-});
+}
 
 type SpotlightLogoRevealProps = {
+  refs: SpotlightLogoRevealViewModel["refs"];
   logoSrc: string;
   accentColor: string;
-  nightStateRef: React.RefObject<NightState>;
   className?: string;
   heightClassName?: string;
   nightHoverColor?: string;
 };
 
 function SpotlightLogoReveal({
+  refs,
   logoSrc,
   accentColor,
-  nightStateRef,
   className,
   heightClassName = "h-50",
   nightHoverColor = "#4C3E39",
 }: SpotlightLogoRevealProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const overlayRef = useRef<HTMLDivElement | null>(null);
-  const nightPunchOverlayRef = useRef<HTMLDivElement | null>(null);
-
-  const targetRef = useRef<{ x: number; y: number } | null>(null);
-  const posRef = useRef<{ x: number; y: number } | null>(null);
-  const isHoveredRef = useRef(false);
-  const rafRef = useRef<number | null>(null);
-
-  const SPOT_EASE = 0.09;
-  const SPOT_RADIUS = 130;
-
-  useEffect(() => {
-    const container = containerRef.current;
-    const overlay = overlayRef.current;
-    const nightPunchOverlay = nightPunchOverlayRef.current;
-    if (!container || !overlay) return;
-
-    const handlePointerMove = (e: PointerEvent) => {
-      const rect = container.getBoundingClientRect();
-      targetRef.current = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      };
-    };
-
-    const handlePointerEnter = () => {
-      isHoveredRef.current = true;
-    };
-
-    const handlePointerLeave = () => {
-      isHoveredRef.current = false;
-    };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    container.addEventListener("pointerenter", handlePointerEnter);
-    container.addEventListener("pointerleave", handlePointerLeave);
-
-    const render = () => {
-      const night = nightStateRef.current;
-      const rect = container.getBoundingClientRect();
-
-      if (targetRef.current) {
-        if (!posRef.current) {
-          posRef.current = { ...targetRef.current };
-        } else {
-          posRef.current.x +=
-            (targetRef.current.x - posRef.current.x) * SPOT_EASE;
-          posRef.current.y +=
-            (targetRef.current.y - posRef.current.y) * SPOT_EASE;
-        }
-      }
-
-      if (night && night.origin && night.progress > 0.0001) {
-        const localX = night.origin.x - rect.left;
-        const localY = night.origin.y - rect.top;
-
-        const maxRadius = Math.hypot(window.innerWidth, window.innerHeight);
-        const currentRadius = maxRadius * night.progress;
-
-        const mask = `radial-gradient(circle ${currentRadius}px at ${localX}px ${localY}px, black 0%, black 100%, transparent 100%)`;
-
-        overlay.style.maskImage = mask;
-        overlay.style.webkitMaskImage = mask;
-        overlay.style.opacity = "1";
-      } else if (posRef.current) {
-        const mask = `radial-gradient(circle ${SPOT_RADIUS}px at ${posRef.current.x}px ${posRef.current.y}px, black 0%, black 100%, transparent 100%)`;
-
-        overlay.style.maskImage = mask;
-        overlay.style.webkitMaskImage = mask;
-        overlay.style.opacity = isHoveredRef.current ? "1" : "0";
-      }
-
-      if (nightPunchOverlay) {
-        const isFullyNight = !!night?.isNight;
-
-        if (isFullyNight && posRef.current) {
-          const mask = `radial-gradient(circle ${SPOT_RADIUS}px at ${posRef.current.x}px ${posRef.current.y}px, black 0%, black 100%, transparent 100%)`;
-
-          nightPunchOverlay.style.maskImage = mask;
-          nightPunchOverlay.style.webkitMaskImage = mask;
-          nightPunchOverlay.style.opacity = isHoveredRef.current ? "1" : "0";
-        } else {
-          nightPunchOverlay.style.opacity = "0";
-        }
-      }
-
-      rafRef.current = requestAnimationFrame(render);
-    };
-
-    rafRef.current = requestAnimationFrame(render);
-
-    return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      container.removeEventListener("pointerenter", handlePointerEnter);
-      container.removeEventListener("pointerleave", handlePointerLeave);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [nightStateRef]);
-
   const shapeMask: React.CSSProperties = {
     WebkitMaskImage: `url(${logoSrc})`,
     maskImage: `url(${logoSrc})`,
@@ -534,7 +56,7 @@ function SpotlightLogoReveal({
 
   return (
     <div
-      ref={containerRef}
+      ref={refs.containerRef}
       className={`relative inline-block ${heightClassName} ${className ?? ""}`}
     >
       <img
@@ -544,7 +66,7 @@ function SpotlightLogoReveal({
       />
 
       <div
-        ref={overlayRef}
+        ref={refs.overlayRef}
         aria-hidden="true"
         className="absolute inset-0 z-10 pointer-events-none transition-opacity duration-300"
         style={{ opacity: 0 }}
@@ -559,7 +81,7 @@ function SpotlightLogoReveal({
       </div>
 
       <div
-        ref={nightPunchOverlayRef}
+        ref={refs.nightPunchOverlayRef}
         aria-hidden="true"
         className="absolute inset-0 z-20 pointer-events-none transition-opacity duration-300"
         style={{ opacity: 0 }}
@@ -578,160 +100,123 @@ function SpotlightLogoReveal({
 
 interface HeaderProps {
   isNightMode: boolean;
+  playIntroVideo: boolean;
   onToggleNight: (isNight?: boolean) => void;
 }
 
-export function Header({ isNightMode, onToggleNight }: HeaderProps) {
-  const isFirstMount = useRef(true);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const couchCanvasRef = useRef<CouchRevealCanvasHandle | null>(null);
-
-  const [fadeToCouch, setFadeToCouch] = useState(false);
-  const [videoFinished, setVideoFinished] = useState(false);
-
-  const nightStateRef = useRef<NightState>({
-    progress: 0,
-    origin: null,
-    isNight: false,
+export function Header({
+  isNightMode,
+  playIntroVideo,
+  onToggleNight,
+}: HeaderProps) {
+  const { state, refs, motion: motionValues, actions } = useHeaderViewModel({
+    isNightMode,
+    playIntroVideo,
+    onToggleNight,
   });
-
-  const { scrollY } = useScroll();
-
-  const couchYOffset = useTransform(scrollY, [0, 600], [0, 200]);
-  const textOpacity = useTransform(scrollY, [0, 280], [1, 0]);
-  const textYOffset = useTransform(scrollY, [0, 280], [0, 24]);
-  const scrollHintOpacity = useTransform(scrollY, [0, 120], [1, 0]);
-  const scrollHintY = useTransform(scrollY, [0, 120], [0, 20]);
-
-  useEffect(() => {
-    isFirstMount.current = false;
-  }, []);
-
-  useEffect(() => {
-    if (nightStateRef.current.isNight !== isNightMode) {
-      couchCanvasRef.current?.triggerNightToggle();
-    }
-  }, [isNightMode]);
-
-  useEffect(() => {
-    const preventScroll = (e: WheelEvent) => {
-      if (!videoFinished) e.preventDefault();
-    };
-
-    const preventTouch = (e: TouchEvent) => {
-      if (!videoFinished) e.preventDefault();
-    };
-
-    const preventKeys = (e: KeyboardEvent) => {
-      if (
-        !videoFinished &&
-        [
-          "ArrowUp",
-          "ArrowDown",
-          "PageUp",
-          "PageDown",
-          "Home",
-          "End",
-          " ",
-        ].includes(e.key)
-      ) {
-        e.preventDefault();
-      }
-    };
-
-    window.addEventListener("wheel", preventScroll, { passive: false });
-    window.addEventListener("touchmove", preventTouch, { passive: false });
-    window.addEventListener("keydown", preventKeys);
-
-    return () => {
-      window.removeEventListener("wheel", preventScroll);
-      window.removeEventListener("touchmove", preventTouch);
-      window.removeEventListener("keydown", preventKeys);
-    };
-  }, [videoFinished]);
-
-  const handleVideoEnded = () => {
-    if (!videoRef.current) return;
-    videoRef.current.currentTime = videoRef.current.duration;
-    videoRef.current.pause();
-    setVideoFinished(true);
-  };
-
-  const handleVideoTimeUpdate = () => {
-    if (!videoRef.current || fadeToCouch) return;
-    const { duration, currentTime } = videoRef.current;
-    if (!Number.isFinite(duration) || duration <= 0) return;
-
-    if (duration - currentTime <= 0.5) {
-      setFadeToCouch(true);
-    }
-  };
+  const { shouldPlayVideo, fadeToCouch, videoFinished, isVideoReady } = state;
 
   return (
     <section className="home-header relative overflow-hidden">
       <div className="home-header__ending-couch-shell">
         <motion.div
           className="home-header__ending-couch-motion"
-          style={{ y: couchYOffset }}
+          style={{ y: motionValues.couchYOffset }}
         >
           <CouchRevealCanvas
-            ref={couchCanvasRef}
-            daySrc="/couch-extended.png"
-            nightSrc="/couch-night-extended.png"
-            objectPositionX={50}
-            objectPositionY={20.29}
+            refs={refs.couch}
             className="home-header__ending-couch"
-            nightStateRef={nightStateRef}
-            onToggleNight={(nextNightState) => onToggleNight(nextNightState)}
           />
         </motion.div>
       </div>
 
-      <video
-        ref={videoRef}
-        className={`home-header__video ${
-          fadeToCouch ? "home-header__video--fade-out" : ""
-        }`}
-        src="/video/home.mp4"
-        autoPlay
-        muted
-        playsInline
-        preload="auto"
-        onTimeUpdate={handleVideoTimeUpdate}
-        onEnded={handleVideoEnded}
-      />
+      {shouldPlayVideo && (
+        <video
+          ref={refs.videoRef}
+          className={`home-header__video ${
+            fadeToCouch ? "home-header__video--fade-out" : ""
+          }`}
+          src="/video/home.mp4"
+          autoPlay
+          muted
+          playsInline
+          preload="auto"
+          draggable={false}
+          onLoadedData={actions.handleVideoLoaded}
+          onTimeUpdate={actions.handleVideoTimeUpdate}
+          onEnded={actions.handleVideoEnded}
+        />
+      )}
+
+      {shouldPlayVideo && (
+        <AnimatePresence>
+          {!isVideoReady && (
+            <motion.div
+              key="header-loading"
+              className="home-header__loading home-header__inner flex flex-col items-center justify-center mt-20"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <div className="flex items-center gap-3">
+                {[0, 1, 2].map((i) => (
+                  <motion.span
+                    key={i}
+                    className="block w-3.5 h-3.5 rounded-full"
+                    style={{ backgroundColor: "#4C3E39" }}
+                    animate={{ y: [0, -10, 0], opacity: [0.4, 1, 0.4] }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      delay: i * 0.15,
+                    }}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
 
       <motion.div
         className="home-header__overlay"
-        initial={{ opacity: 0 }}
+        initial={shouldPlayVideo ? { opacity: 0 } : false}
         animate={{ opacity: 1 }}
-        transition={{ delay: 5, duration: 2, ease: "easeOut" }}
+        transition={
+          shouldPlayVideo
+            ? { delay: 5, duration: 2, ease: "easeOut" }
+            : { duration: 0 }
+        }
       >
         <div className="home-header__inner flex flex-col items-center justify-center mt-20">
           <motion.div
             className="home-header__text-shell flex flex-col items-center justify-center cursor-pointer"
-            onClick={(e) =>
-              couchCanvasRef.current?.triggerNightToggle(e.clientX, e.clientY)
-            }
+            onClick={(e) => actions.handleLogoClick(e.clientX, e.clientY)}
             style={{
-              opacity: textOpacity,
-              y: textYOffset,
+              opacity: motionValues.textOpacity,
+              y: motionValues.textYOffset,
             }}
           >
             <motion.div
-              initial={{ opacity: 0, y: -65 }}
+              initial={shouldPlayVideo ? { opacity: 0, y: -65 } : false}
               animate={{ opacity: 1, y: -115 }}
-              transition={{
-                delay: 5.3,
-                duration: 2,
-                ease: "easeOut",
-              }}
+              transition={
+                shouldPlayVideo
+                  ? {
+                      delay: 5.3,
+                      duration: 2,
+                      ease: "easeOut",
+                    }
+                  : { duration: 0 }
+              }
             >
               <SpotlightLogoReveal
+                refs={refs.spotlight}
                 logoSrc="/logo-brown.svg"
                 accentColor="#FFCC73"
-                nightStateRef={nightStateRef}
-                heightClassName="h-50"
+                heightClassName="h-24 sm:h-32 md:h-40 lg:h-50"
               />
             </motion.div>
           </motion.div>
@@ -741,8 +226,8 @@ export function Header({ isNightMode, onToggleNight }: HeaderProps) {
           <motion.div
             className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center text-[#4C3E39]"
             style={{
-              opacity: scrollHintOpacity,
-              y: scrollHintY,
+              opacity: motionValues.scrollHintOpacity,
+              y: motionValues.scrollHintY,
             }}
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}

@@ -1,26 +1,16 @@
-import { useLayoutEffect, useRef, useState } from "react";
-import { ABOUT_US_GALLERY_ITEMS, ABOUT_US_STEPS } from "./aboutUsContent";
+import { useLayoutEffect, useRef } from "react";
+import { ABOUT_US_STEPS } from "./aboutUsContent";
 import type { AboutUsHeaderRefs } from "./useAboutUsHeaderViewModel";
 
 const STAGE_NODES = [
-  { start: 0.0, end: 0.1 },
-  { start: 0.1, end: 0.22 },
-  { start: 0.22, end: 0.34 },
-  { start: 0.34, end: 0.45 },
-  { start: 0.45, end: 1.0 },
+  { start: 0.0, end: 0.15 },
+  { start: 0.15, end: 0.43 },
+  { start: 0.43, end: 0.71 },
+  { start: 0.71, end: 1.0 },
 ];
 
 export function useAboutUsGalleryViewModel(headerRefs: AboutUsHeaderRefs) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const galleryContainerRef = useRef<HTMLDivElement | null>(null);
-  const galleryCenterRef = useRef<HTMLDivElement | null>(null);
-  const whatWeDoRef = useRef<HTMLDivElement | null>(null);
-  const titleNumberRef = useRef<HTMLDivElement | null>(null);
-  const titleTextRef = useRef<HTMLDivElement | null>(null);
-  const descTextRef = useRef<HTMLDivElement | null>(null);
-
-  const galleryItemRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const galleryImgRefs = useRef<(HTMLImageElement | null)[]>([]);
 
   const activeStepRef = useRef(0);
   const isAnimatingRef = useRef(false);
@@ -28,19 +18,6 @@ export function useAboutUsGalleryViewModel(headerRefs: AboutUsHeaderRefs) {
   const reverseSeekCleanupRef = useRef<(() => void) | null>(null);
   const forwardLoopCleanupRef = useRef<(() => void) | null>(null);
   const scrollRafIdRef = useRef<number | null>(null);
-
-  const galleryDisplayedIndexRef = useRef(-1);
-  const galleryTransitionActiveRef = useRef(false);
-  const galleryTransitionCleanupRef = useRef<(() => void) | null>(null);
-
-  const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
-
-  useLayoutEffect(() => {
-    ABOUT_US_GALLERY_ITEMS.forEach((item) => {
-      const img = new Image();
-      img.src = item.image;
-    });
-  }, []);
 
   useLayoutEffect(() => {
     if (typeof window !== "undefined" && "scrollRestoration" in history) {
@@ -220,133 +197,12 @@ export function useAboutUsGalleryViewModel(headerRefs: AboutUsHeaderRefs) {
       }
     };
 
-    const cancelGalleryTransition = () => {
-      if (galleryTransitionCleanupRef.current) {
-        galleryTransitionCleanupRef.current();
-        galleryTransitionCleanupRef.current = null;
-      }
-      galleryTransitionActiveRef.current = false;
-    };
-
-    const startGalleryIris = (toIndex: number) => {
-      const fromIndex = galleryDisplayedIndexRef.current;
-      if (toIndex === fromIndex) return;
-
-      cancelGalleryTransition();
-      galleryTransitionActiveRef.current = true;
-
-      const centerEl = galleryCenterRef.current;
-      const toItem = galleryItemRefs.current[toIndex];
-
-      if (!centerEl || !toItem) {
-        galleryDisplayedIndexRef.current = toIndex;
-        galleryTransitionActiveRef.current = false;
-        return;
-      }
-
-      const rect = centerEl.getBoundingClientRect();
-      const maxRadius = Math.sqrt(rect.width ** 2 + rect.height ** 2) / 2 + 12;
-
-      const setClip = (el: HTMLElement, value: string) => {
-        el.style.clipPath = value;
-        (el.style as unknown as Record<string, string>).webkitClipPath = value;
-      };
-
-      const setClipTransition = (el: HTMLElement, value: string) => {
-        el.style.transition = value;
-        (el.style as unknown as Record<string, string>).webkitTransition =
-          value.replace("clip-path", "-webkit-clip-path");
-      };
-
-      ABOUT_US_GALLERY_ITEMS.forEach((_, idx) => {
-        const el = galleryItemRefs.current[idx];
-        if (!el || idx === toIndex) return;
-        setClipTransition(el, "none");
-        setClip(el, "none");
-        el.style.pointerEvents = "none";
-        if (idx === fromIndex) {
-          el.style.opacity = "1";
-          el.style.zIndex = "1";
-        } else {
-          el.style.opacity = "0";
-          el.style.zIndex = "0";
-        }
-      });
-
-      setClipTransition(toItem, "none");
-      setClip(toItem, "circle(0px at 50% 50%)");
-      toItem.style.opacity = "1";
-      toItem.style.zIndex = "2";
-      toItem.style.pointerEvents = "none";
-
-      void toItem.offsetWidth;
-
-      const duration = 900;
-      setClipTransition(
-        toItem,
-        `clip-path ${duration}ms cubic-bezier(0.65, 0, 0.35, 1)`,
-      );
-      setClip(toItem, `circle(${maxRadius}px at 50% 50%)`);
-
-      let settled = false;
-      let timeoutId: number | null = null;
-
-      const finishReveal = () => {
-        if (settled) return;
-        settled = true;
-        toItem.removeEventListener("transitionend", onTransitionEnd);
-        if (timeoutId !== null) {
-          window.clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-        if (galleryTransitionCleanupRef.current === cleanup) {
-          galleryTransitionCleanupRef.current = null;
-        }
-
-        setClipTransition(toItem, "none");
-        setClip(toItem, "none");
-        toItem.style.zIndex = "1";
-        galleryDisplayedIndexRef.current = toIndex;
-        galleryTransitionActiveRef.current = false;
-
-        ABOUT_US_GALLERY_ITEMS.forEach((_, idx) => {
-          if (idx === toIndex) return;
-          const el = galleryItemRefs.current[idx];
-          if (el) {
-            el.style.opacity = "0";
-            el.style.zIndex = "0";
-          }
-        });
-      };
-
-      const onTransitionEnd = (e: TransitionEvent) => {
-        if (e.target !== toItem) return;
-        if (e.propertyName !== "clip-path") return;
-        finishReveal();
-      };
-
-      toItem.addEventListener("transitionend", onTransitionEnd);
-
-      timeoutId = window.setTimeout(finishReveal, duration + 200);
-
-      const cleanup = () => {
-        if (settled) return;
-        settled = true;
-        toItem.removeEventListener("transitionend", onTransitionEnd);
-        if (timeoutId !== null) {
-          window.clearTimeout(timeoutId);
-          timeoutId = null;
-        }
-      };
-
-      galleryTransitionCleanupRef.current = cleanup;
-    };
-
     const updateDOMForScroll = (progress: number) => {
+      const node0 = STAGE_NODES[0];
+
       let introOpacity = 0;
       let introTranslateY = 0;
 
-      const node0 = STAGE_NODES[0];
       if (progress <= node0.end) {
         const p = progress / node0.end;
         introOpacity = Math.max(0, 1 - Math.pow(p, 1.2));
@@ -401,135 +257,9 @@ export function useAboutUsGalleryViewModel(headerRefs: AboutUsHeaderRefs) {
           el.style.pointerEvents = opacity > 0.1 ? "auto" : "none";
         }
       }
-
-      const galleryStart = STAGE_NODES[4].start;
-      const galleryEnd = STAGE_NODES[4].end;
-      const slideStart = 0.36;
-      const slideProgress = Math.max(
-        0,
-        Math.min(1, (progress - slideStart) / (galleryStart - slideStart)),
-      );
-
-      const galleryTranslateY = 100 * (1 - slideProgress);
-
-      if (galleryContainerRef.current) {
-        galleryContainerRef.current.style.transform = `translate3d(0, ${galleryTranslateY}vh, 0)`;
-        galleryContainerRef.current.style.opacity =
-          slideProgress > 0 ? "1" : "0";
-        galleryContainerRef.current.style.pointerEvents =
-          slideProgress >= 1 ? "auto" : "none";
-      }
-
-      if (headerRefs.videoContainerRef.current) {
-        if (slideProgress >= 1) {
-          headerRefs.videoContainerRef.current.style.opacity = "0";
-          headerRefs.videoContainerRef.current.style.visibility = "hidden";
-        } else {
-          headerRefs.videoContainerRef.current.style.opacity = "1";
-          headerRefs.videoContainerRef.current.style.visibility = "visible";
-        }
-      }
-
-      const galleryRawProgress = Math.max(
-        0,
-        Math.min(1, (progress - galleryStart) / (galleryEnd - galleryStart)),
-      );
-
-      const innerImageParallaxY = (0.5 - galleryRawProgress) * 24;
-      const itemCount = ABOUT_US_GALLERY_ITEMS.length;
-      const itemSegmentLength = 1 / itemCount;
-
-      const calculatedGalleryIndex =
-        galleryRawProgress <= 0
-          ? -1
-          : Math.min(
-              itemCount - 1,
-              Math.floor(galleryRawProgress / itemSegmentLength),
-            );
-
-      if (
-        calculatedGalleryIndex >= 0 &&
-        calculatedGalleryIndex !== galleryDisplayedIndexRef.current &&
-        !galleryTransitionActiveRef.current
-      ) {
-        startGalleryIris(calculatedGalleryIndex);
-      }
-
-      const textIndex = Math.max(0, calculatedGalleryIndex);
-      setActiveGalleryIndex((previous) => (previous !== textIndex ? textIndex : previous));
-
-      const itemProgress =
-        (galleryRawProgress - textIndex * itemSegmentLength) /
-        itemSegmentLength;
-
-      const titleAndNumberY =
-        itemProgress < 0.45 ? 100 - (itemProgress / 0.45) * 200 : -100;
-
-      const titleAndNumberOpacity = Math.max(
-        0,
-        itemProgress < 0.08
-          ? itemProgress / 0.08
-          : itemProgress > 0.37
-            ? 1 - (itemProgress - 0.37) / 0.08
-            : 1,
-      );
-
-      const descY =
-        itemProgress >= 0.45 && itemProgress < 0.9
-          ? 100 - ((itemProgress - 0.45) / 0.45) * 200
-          : itemProgress >= 0.9
-            ? -100
-            : 100;
-
-      const descOpacity = Math.max(
-        0,
-        itemProgress < 0.48
-          ? 0
-          : itemProgress < 0.55
-            ? (itemProgress - 0.48) / 0.07
-            : itemProgress > 0.83
-              ? 1 - (itemProgress - 0.83) / 0.07
-              : 1,
-      );
-
-      const whatWeDoOpacity = Math.max(
-        0,
-        galleryRawProgress < 0.05
-          ? galleryRawProgress / 0.05
-          : galleryRawProgress > 0.93
-            ? 1 - (galleryRawProgress - 0.93) / 0.07
-            : 1,
-      );
-
-      if (whatWeDoRef.current) {
-        whatWeDoRef.current.style.opacity = `${whatWeDoOpacity}`;
-      }
-
-      if (titleNumberRef.current) {
-        titleNumberRef.current.style.transform = `translate3d(0, ${titleAndNumberY}vh, 0)`;
-        titleNumberRef.current.style.opacity = `${titleAndNumberOpacity}`;
-      }
-
-      if (titleTextRef.current) {
-        titleTextRef.current.style.transform = `translate3d(0, ${titleAndNumberY}vh, 0)`;
-        titleTextRef.current.style.opacity = `${titleAndNumberOpacity}`;
-      }
-
-      if (descTextRef.current) {
-        descTextRef.current.style.transform = `translate3d(0, ${descY}vh, 0)`;
-        descTextRef.current.style.opacity = `${descOpacity}`;
-      }
-
-      ABOUT_US_GALLERY_ITEMS.forEach((_, idx) => {
-        const imgEl = galleryImgRefs.current[idx];
-        if (imgEl) {
-          imgEl.style.transform = `translate3d(0, ${innerImageParallaxY}%, 0) scale(1.3)`;
-        }
-      });
     };
 
     const getTargetStageForProgress = (progress: number) => {
-      if (progress >= STAGE_NODES[4].start) return 4;
       if (progress >= STAGE_NODES[3].start) return 3;
       if (progress >= STAGE_NODES[2].start) return 2;
       if (progress >= STAGE_NODES[1].start) return 1;
@@ -570,8 +300,13 @@ export function useAboutUsGalleryViewModel(headerRefs: AboutUsHeaderRefs) {
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
 
+    // Re-syncs the video/DOM to wherever the user actually is once layout has
+    // settled (fonts/video metadata can shift container height right after
+    // mount). Must not force scroll back to 0 here - the page-level effect
+    // already owns "start at top", and forcing it a second time mid-flight
+    // snaps the user back and resets the video if they've scrolled in the
+    // meantime (most visible right after a refresh).
     const initTimeout = setTimeout(() => {
-      window.scrollTo(0, 0);
       const initialProgress = getScrollProgress();
       if (initialProgress !== null) {
         updateDOMForScroll(initialProgress);
@@ -591,31 +326,17 @@ export function useAboutUsGalleryViewModel(headerRefs: AboutUsHeaderRefs) {
       window.removeEventListener("scroll", handleScroll);
       if (scrollRafIdRef.current !== null) {
         cancelAnimationFrame(scrollRafIdRef.current);
+        scrollRafIdRef.current = null;
       }
       cleanupTimeUpdate();
       reverseSeekCleanupRef.current?.();
       forwardLoopCleanupRef.current?.();
-      galleryTransitionCleanupRef.current?.();
     };
   }, [headerRefs]);
 
   return {
-    data: {
-      galleryItems: ABOUT_US_GALLERY_ITEMS,
-    },
-    state: {
-      activeGalleryIndex,
-    },
     refs: {
       containerRef,
-      galleryContainerRef,
-      galleryCenterRef,
-      whatWeDoRef,
-      titleNumberRef,
-      titleTextRef,
-      descTextRef,
-      galleryItemRefs,
-      galleryImgRefs,
     },
   };
 }

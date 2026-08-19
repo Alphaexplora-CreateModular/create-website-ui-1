@@ -24,7 +24,7 @@ export function ProjectsModelShowcase() {
           {viewModel.state.modelError && (
             <div className="absolute inset-0 flex items-center justify-center text-center px-6 pointer-events-none">
               <span className="text-xs uppercase tracking-widest text-red-800/70 font-poppins">
-                Failed to load model from public/models/Low+Poly+Kitchen.gltf —
+                Failed to load model from public/models/kitchen.glb —
                 check the browser console for details.
               </span>
             </div>

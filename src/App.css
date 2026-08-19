@@ -27,6 +27,11 @@ body {
   color: #000000;
 }
 
+body.home-night-mode {
+  background: #4C3E39;
+  color: #ffffff;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -46,6 +51,100 @@ select {
   align-items: center;
   justify-content: center;
   background: #ffffff;
+}
+
+/* Phone: header fills exactly one screen's height. */
+@media (max-width: 639px) {
+  .home-header {
+    height: 100vh;
+    min-height: 100vh;
+  }
+}
+
+/* Tablet: header height scales with the viewport width instead of a fixed
+   vh, so it stays proportional across tablet sizes. Logo sizing/position is
+   controlled separately (see SpotlightLogoReveal's heightClassName in
+   Header.tsx) and is untouched by this. */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .home-header {
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 3 / 4;
+  }
+}
+
+.home-page-shell--night,
+.home-page-shell--night .home-header,
+.home-page-shell--night .service-overview,
+.home-page-shell--night .bg-\[\#DFD6C9\],
+.home-page-shell--night .bg-\[\#dfd6c9\],
+.home-page-shell--night section[style],
+.home-page-shell--night div[style*="background-color: rgb(255, 255, 255)"],
+.home-page-shell--night div[style*="background-color: #FFFFFF"] {
+  background: #4C3E39 !important;
+  background-color: #4C3E39 !important;
+}
+
+.home-page-shell--night :where(
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  span,
+  a,
+  label,
+  div,
+  li,
+  svg,
+  input,
+  textarea
+) {
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+}
+
+.home-page-shell--night :where(input, textarea) {
+  background-color: rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff !important;
+}
+
+.home-page-shell--night :where(input, textarea)::placeholder {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.home-page-shell--night :where(
+  button,
+  a
+)[style*="background-color: rgb(61, 42, 29)"],
+.home-page-shell--night :where(
+  button,
+  a
+)[style*="background-color: #3D2A1D"],
+.home-page-shell--night .service-overview__button--primary {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #4C3E39 !important;
+  border-color: #ffffff !important;
+}
+
+.home-page-shell--night :where(
+  button,
+  a
+)[style*="background-color: rgb(61, 42, 29)"] *,
+.home-page-shell--night :where(
+  button,
+  a
+)[style*="background-color: #3D2A1D"] *,
+.home-page-shell--night .service-overview__button--primary * {
+  color: #4C3E39 !important;
+}
+
+.home-page-shell--night .service-overview__button--secondary {
+  color: #ffffff !important;
+  border-color: #ffffff !important;
 }
 
 .home-header__video {
@@ -101,6 +200,111 @@ select {
     rgba(223, 214, 201, 0) 63.02%,
     #DFD6C9 100%
   );
+}
+
+.home-page-shell--night .home-header__ending-couch-shell::after {
+  background: linear-gradient(
+    180deg,
+    rgba(135, 96, 66, 0) 63.02%,
+    #4C3E39 100%
+  );
+}
+
+.about-us-page-shell--night,
+.about-us-page-shell--night .about-us-gallery,
+.about-us-page-shell--night .bg-\[\#DFD6C9\],
+.about-us-page-shell--night .bg-\[\#dfd6c9\] {
+  background: #4C3E39 !important;
+  background-color: #4C3E39 !important;
+}
+
+.about-us-page-shell--night :where(
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  span,
+  a,
+  label,
+  div,
+  li,
+  svg,
+  input,
+  textarea
+) {
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+}
+
+.projects-page-shell--night,
+.projects-page-shell--night .bg-\[\#DFD6C9\],
+.projects-page-shell--night .bg-\[\#dfd6c9\],
+.contact-page-shell--night {
+  background: #4C3E39 !important;
+  background-color: #4C3E39 !important;
+}
+
+.projects-page-shell--night main :where(
+  section,
+  div,
+  h1,
+  h2,
+  h3,
+  p,
+  span,
+  li
+),
+.contact-page-shell--night main :where(
+  h1,
+  h2,
+  h3,
+  p,
+  span,
+  label,
+  div,
+  input,
+  textarea
+) {
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.projects-page-shell--night .project-grid-card {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+}
+
+.projects-page-shell--night .project-grid-card :where(p, span, h3, div) {
+  color: #ffffff !important;
+}
+
+.projects-page-shell--night .project-grid-card [class*="bg-[#4C3E39]"],
+.contact-page-shell--night main button[type="submit"] {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #4C3E39 !important;
+  border-color: #ffffff !important;
+}
+
+.contact-page-shell--night main :where(input, textarea) {
+  background: transparent !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+}
+
+.contact-page-shell--night main :where(input, textarea):focus {
+  border-color: #ffffff !important;
+}
+
+.home-page-shell--night footer,
+.about-us-page-shell--night footer,
+.projects-page-shell--night footer,
+.contact-page-shell--night footer {
+  background: #4C3E39 !important;
+  background-color: #4C3E39 !important;
 }
 
 .home-header__ending-couch-motion {
@@ -179,6 +383,17 @@ top: 150px;
   display: flex;
   justify-content: center;
   text-align: center;
+}
+
+.home-header__loading {
+  z-index: 2;
+  pointer-events: none;
+}
+
+@media (max-width: 767px) {
+  .home-header__inner {
+    top: 90px;
+  }
 }
 
 .home-header__text-shell {
@@ -282,7 +497,7 @@ top: 150px;
 }
 
 .service-overview__button--primary {
-  background: #3f2f24;
+  background: #4C3E39;
   color: #fff;
 }
 
@@ -345,5 +560,40 @@ top: 150px;
 
   .service-overview__title {
     font-size: clamp(2.2rem, 8vw, 2.8rem);
+  }
+}
+
+.about-us-page-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #DFD6C9;
+  transition: opacity 0.4s ease;
+}
+
+.about-us-page-loader--night {
+  background: #4C3E39;
+}
+
+.about-us-page-loader__ring {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 4px solid rgba(76, 62, 57, 0.15);
+  border-top-color: #4C3E39;
+  animation: about-us-page-loader-spin 0.9s linear infinite;
+}
+
+.about-us-page-loader--night .about-us-page-loader__ring {
+  border-color: rgba(255, 255, 255, 0.2);
+  border-top-color: #ffffff;
+}
+
+@keyframes about-us-page-loader-spin {
+  to {
+    transform: rotate(360deg);
   }
 }

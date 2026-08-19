@@ -1,5 +1,5 @@
 // src/features/home/views/Home.tsx
-import { useState } from "react";
+import { useEffect, useRef } from "react";
 import { useHomeViewModel } from "../viewModels/useHomeViewModel";
 import { Header } from "./Header";
 import { ServiceOverview } from "./ServiceOverview";
@@ -9,18 +9,48 @@ import { Navbar } from "../../../shared/components/Navbar";
 import Footer from "../../../shared/components/Footer";
 import Scroll from "../../../shared/components/Scroll";
 
-export function Home() {
+type HomeProps = {
+  isNightMode: boolean;
+  playIntroVideo: boolean;
+  onToggleNight: () => void;
+  onSetNightMode: (isNightMode: boolean) => void;
+  onHomeIntroMounted: () => void;
+};
+
+export function Home({
+  isNightMode,
+  playIntroVideo,
+  onToggleNight,
+  onSetNightMode,
+  onHomeIntroMounted,
+}: HomeProps) {
+  const shouldPlayIntroVideo = useRef(playIntroVideo).current;
+  const hasReportedIntroMount = useRef(false);
   const viewModel = useHomeViewModel();
   void viewModel;
 
-  const [isNightMode, setIsNightMode] = useState<boolean>(false);
+  useEffect(() => {
+    if (shouldPlayIntroVideo && !hasReportedIntroMount.current) {
+      hasReportedIntroMount.current = true;
+      onHomeIntroMounted();
+    }
+  }, [onHomeIntroMounted, shouldPlayIntroVideo]);
 
   const handleToggleNight = (nextState?: boolean) => {
-    setIsNightMode((prev) => (nextState !== undefined ? nextState : !prev));
+    if (nextState !== undefined) {
+      onSetNightMode(nextState);
+      return;
+    }
+
+    onToggleNight();
   };
 
   return (
-    <div className="home-page-shell relative min-h-screen">
+    <div
+      className={`home-page-shell relative min-h-screen ${
+        isNightMode ? "home-page-shell--night" : ""
+      }`}
+    >
       <Navbar
         isNightMode={isNightMode}
         onToggleNight={() => handleToggleNight()}
@@ -29,6 +59,7 @@ export function Home() {
       {/* Hero Header */}
       <Header
         isNightMode={isNightMode}
+        playIntroVideo={shouldPlayIntroVideo}
         onToggleNight={(nextState) => handleToggleNight(nextState)}
       />
 

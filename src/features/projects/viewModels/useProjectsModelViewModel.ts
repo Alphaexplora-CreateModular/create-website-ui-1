@@ -61,78 +61,12 @@ export function useProjectsModelViewModel() {
 
     const baseUrl = import.meta.env.BASE_URL;
     const modelBasePath = `${baseUrl}models/`;
-    const textureBasePath = `${modelBasePath}textures/`;
+    const modelPath = `${modelBasePath}kitchen.glb`;
 
     const gltfLoader = new GLTFLoader();
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.setPath(textureBasePath);
-
-    const normalizeMaterialName = (name?: string) => {
-      if (!name) return "";
-      return name.replace(/\.\d+$/, "").trim().toLowerCase();
-    };
-
-    const loadTexture = (fileName: string, isColor = false) => {
-      const texture = textureLoader.load(fileName, undefined, undefined, (error) => {
-        console.error(
-          `[3D Model] Failed to load texture: ${textureBasePath}${fileName}`,
-          error,
-        );
-      });
-      texture.flipY = false;
-      if (isColor) {
-        texture.colorSpace = THREE.SRGBColorSpace;
-      }
-      return texture;
-    };
-
-    const materialTextureMap: Record<
-      string,
-      {
-        baseColor?: string;
-        normal?: string;
-        roughness?: string;
-      }
-    > = {
-      "white plaster": {
-        baseColor: "White Plaster Base Color.png",
-        normal: "White Plaster Normal.png",
-        roughness: "White Plaster Roughness.png",
-      },
-      "wood 1": {
-        baseColor: "Wood 1 Base Color.png",
-        normal: "Wood 1 Normal.png",
-        roughness: "Wood 1 Roughness.png",
-      },
-      "wood 8": {
-        baseColor: "Wood 8 Base Color.png",
-        normal: "Wood 8 Normal.png",
-        roughness: "Wood 8 Roughness.png",
-      },
-    };
-
-    const applyTexturesToMaterial = (material: THREE.Material) => {
-      const stdMat = material as THREE.MeshStandardMaterial;
-      const textureSet = materialTextureMap[normalizeMaterialName(stdMat.name)];
-      if (!textureSet) return;
-
-      if (textureSet.baseColor) {
-        stdMat.map = loadTexture(textureSet.baseColor, true);
-      }
-      if (textureSet.normal) {
-        stdMat.normalMap = loadTexture(textureSet.normal);
-      }
-      if (textureSet.roughness) {
-        stdMat.roughnessMap = loadTexture(textureSet.roughness);
-      }
-
-      stdMat.needsUpdate = true;
-    };
-
-    gltfLoader.setResourcePath(modelBasePath);
 
     gltfLoader.load(
-      `${modelBasePath}Low+Poly+Kitchen.gltf`,
+      modelPath,
       (gltf) => {
         const object = gltf.scene;
         const box = new THREE.Box3().setFromObject(object);
@@ -142,9 +76,7 @@ export function useProjectsModelViewModel() {
           !isFinite(size.x) || !isFinite(size.y) || !isFinite(size.z) || size.x + size.y + size.z === 0;
 
         if (isEmpty) {
-          console.error(
-            '[3D Model] "/models/Low+Poly+Kitchen.gltf" loaded but contained no usable geometry.',
-          );
+          console.error(`[3D Model] "${modelPath}" loaded but contained no usable geometry.`);
           setModelError(true);
           setModelLoading(false);
           return;
@@ -165,7 +97,6 @@ export function useProjectsModelViewModel() {
               const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
               materials.forEach((material: any) => {
                 material.side = THREE.DoubleSide;
-                applyTexturesToMaterial(material as THREE.Material);
               });
             }
           }
@@ -180,7 +111,7 @@ export function useProjectsModelViewModel() {
       },
       undefined,
       (error) => {
-        console.error("Failed to load /models/Low+Poly+Kitchen.gltf:", error);
+        console.error(`Failed to load ${modelPath}:`, error);
         setModelError(true);
         setModelLoading(false);
       },

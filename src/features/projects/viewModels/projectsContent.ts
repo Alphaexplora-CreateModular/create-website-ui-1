@@ -79,13 +79,13 @@ export const PROJECTS_DATA: ProjectItem[] = [
 ];
 
 export const MODEL_SHOWCASE = {
-  eyebrow: "Interactive Preview",
-  title: "Explore The Model",
+  eyebrow: "Interactive 3D Preview",
+  title: "See It Before It's Built",
   description:
-    "Rotate, pan, and zoom through a full 3D render of the featured build. Every joint, surface, and material choice is modeled true to scale, giving you a real sense of proportion before a single wall goes up.",
+    "Experience your modular interior through a realistic 3D model. Explore every detail, from cabinetry to finishes, and confidently visualize your space before installation.",
   bullets: [
-    "Drag to orbit, scroll to zoom",
-    "Modeled true to real-world scale",
-    "Rendered directly in the browser, no plugins",
+    "360° interactive viewing",
+    "Accurate real-world dimensions",
+    "Browser-based, no downloads required",
   ],
 };

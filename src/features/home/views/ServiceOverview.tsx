@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { Link } from "react-router-dom";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useServiceOverviewViewModel } from "../viewModels/useServiceOverviewViewModel";
 
@@ -52,12 +53,18 @@ export function ServiceOverview() {
             viewport={{ once: false, amount: 0.35 }}
             transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }}
           >
-            <button className="service-overview__button service-overview__button--primary">
+            <Link
+              to="/contact"
+              className="service-overview__button service-overview__button--primary"
+            >
               Request a Consultation
-            </button>
-            <button className="service-overview__button service-overview__button--secondary">
+            </Link>
+            <Link
+              to="/projects"
+              className="service-overview__button service-overview__button--secondary"
+            >
               View our Projects
-            </button>
+            </Link>
           </motion.div>
         </div>
 
